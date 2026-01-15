@@ -1,0 +1,215 @@
+const router = require('express').Router();
+
+const timer = (time = 300) => (req, res, next) => setTimeout(next, time);
+
+// Mock данные рабочих мест
+const workplaces = [
+  // Блок 5.А.01
+  {
+    id: "1",
+    placeNumber: "5.А.01.001",
+    zone: "Open space 1",
+    blockCode: "5.А.01",
+    type: "Openspace",
+    employeeName: "Иванов Иван Иванович",
+    department: "Департамент ИТ блока 'Сеть продаж'",
+    team: "SberGeo",
+    position: "Ведущий инженер по разработке",
+    status: "occupied"
+  },
+  {
+    id: "2",
+    placeNumber: "5.А.01.002",
+    zone: "Open space 1",
+    blockCode: "5.А.01",
+    type: "Openspace",
+    employeeName: "Петров Петр Петрович",
+    department: "Департамент ИТ блока 'Сеть продаж'",
+    team: "SberPay",
+    position: "Старший разработчик",
+    status: "occupied"
+  },
+  {
+    id: "3",
+    placeNumber: "5.А.01.003",
+    zone: "Open space 1",
+    blockCode: "5.А.01",
+    type: "Openspace",
+    employeeName: "Сидоров Алексей Михайлович",
+    department: "Департамент информационной безопасности",
+    team: "Security",
+    position: "Аналитик безопасности",
+    status: "occupied"
+  },
+  {
+    id: "4",
+    placeNumber: "5.А.01.004",
+    zone: "Open space 1",
+    blockCode: "5.А.01",
+    type: "Openspace",
+    employeeName: "",
+    department: "",
+    team: "",
+    position: "",
+    status: "free"
+  },
+
+  // Блок 5.А.02
+  {
+    id: "5",
+    placeNumber: "5.А.02.001",
+    zone: "Open space 2",
+    blockCode: "5.А.02",
+    type: "Openspace",
+    employeeName: "Кузнецова Мария Сергеевна",
+    department: "Департамент маркетинга",
+    team: "Digital Marketing",
+    position: "Маркетолог",
+    status: "occupied"
+  },
+  {
+    id: "6",
+    placeNumber: "5.А.02.002",
+    zone: "Open space 2",
+    blockCode: "5.А.02",
+    type: "Openspace",
+    employeeName: "Волкова Ольга Дмитриевна",
+    department: "Департамент маркетинга",
+    team: "Brand",
+    position: "Бренд-менеджер",
+    status: "occupied"
+  },
+  {
+    id: "7",
+    placeNumber: "5.А.02.003",
+    zone: "Open space 2",
+    blockCode: "5.А.02",
+    type: "Openspace",
+    employeeName: "Соколова Анна Александровна",
+    department: "Департамент HR",
+    team: "Recruiting",
+    position: "Рекрутер",
+    status: "occupied"
+  },
+
+  // Блок 5.В.01
+  {
+    id: "8",
+    placeNumber: "5.В.01.056",
+    zone: "Open space 29",
+    blockCode: "5.В.01",
+    type: "Openspace",
+    employeeName: "Морозов Дмитрий Андреевич",
+    department: "Департамент разработки",
+    team: "Backend",
+    position: "Senior Backend Developer",
+    status: "occupied"
+  },
+  {
+    id: "9",
+    placeNumber: "5.В.01.057",
+    zone: "Open space 29",
+    blockCode: "5.В.01",
+    type: "Openspace",
+    employeeName: "Новиков Сергей Викторович",
+    department: "Департамент разработки",
+    team: "Frontend",
+    position: "Senior Frontend Developer",
+    status: "occupied"
+  },
+  {
+    id: "10",
+    placeNumber: "5.В.01.058",
+    zone: "Open space 29",
+    blockCode: "5.В.01",
+    type: "Openspace",
+    employeeName: "Федоров Александр Павлович",
+    department: "Департамент QA",
+    team: "Automation",
+    position: "QA Automation Engineer",
+    status: "occupied"
+  },
+
+  // Блок 5.В.02
+  {
+    id: "11",
+    placeNumber: "5.В.02.001",
+    zone: "Open space 30",
+    blockCode: "5.В.02",
+    type: "Openspace",
+    employeeName: "Смирнова Елена Борисовна",
+    department: "Департамент аналитики",
+    team: "Data Science",
+    position: "Data Scientist",
+    status: "occupied"
+  },
+  {
+    id: "12",
+    placeNumber: "5.В.02.002",
+    zone: "Open space 30",
+    blockCode: "5.В.02",
+    type: "Openspace",
+    employeeName: "Попова Татьяна Ивановна",
+    department: "Департамент аналитики",
+    team: "BI",
+    position: "BI Analyst",
+    status: "occupied"
+  },
+  {
+    id: "13",
+    placeNumber: "5.В.02.003",
+    zone: "Open space 30",
+    blockCode: "5.В.02",
+    type: "Openspace",
+    employeeName: "Васильева Наталья Сергеевна",
+    department: "Департамент финансов",
+    team: "Accounting",
+    position: "Финансовый аналитик",
+    status: "occupied"
+  }
+];
+
+// API endpoints
+
+// Поиск по ФИО или номеру места
+router.get('/search', (req, res) => {
+  const { type, q } = req.query;
+
+  if (!q || !type) {
+    return res.status(400).json({
+      success: false,
+      error: 'Missing query parameters: type and q are required'
+    });
+  }
+
+  let results = [];
+
+  if (type === 'name') {
+    // Поиск по ФИО (case-insensitive, частичное совпадение)
+    results = workplaces.filter(workplace =>
+      workplace.employeeName.toLowerCase().includes(q.toLowerCase()) &&
+      workplace.status === 'occupied'
+    );
+  } else if (type === 'place') {
+    // Поиск по номеру места (точное совпадение)
+    results = workplaces.filter(workplace =>
+      workplace.placeNumber === q
+    );
+  } else {
+    return res.status(400).json({
+      success: false,
+      error: 'Invalid type parameter. Use "name" or "place"'
+    });
+  }
+
+  res.json({
+    success: true,
+    count: results.length,
+    results: results
+  });
+});
+
+router.use(timer());
+
+module.exports = router;
+module.exports.workplaces = workplaces;

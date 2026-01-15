@@ -1,0 +1,47 @@
+{
+    "name": "workspace-finder",
+    "version": "0.0.0",
+    "description": "WorkspaceFinder",
+    "main": "./src/index.tsx",
+    "scripts": {
+        "test": "exit 0",
+        "start": "brojs server --port=8099 --with-open-browser",
+        "build": "npm run clean && brojs build --dev",
+        "build:prod": "npm run clean && brojs build",
+        "clean": "rimraf dist",
+        "compile": "brojs compile",
+        "prom": "npm run compile && brojs prom-server --port=8099",
+        "eslint": "npx eslint ./src/**/*",
+        "eslint:fix": "npx eslint ./src/**/* --fix"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/MaksimMazanov/workspace-finder.git"
+    },
+    "keywords": [],
+    "author": "",
+    "license": "ISC",
+    "type": "commonjs",
+    "bugs": {
+        "url": "https://github.com/MaksimMazanov/workspace-finder/issues"
+    },
+    "homepage": "https://github.com/MaksimMazanov/workspace-finder#readme",
+    "dependencies": {
+        "@brojs/cli": "^2.0.0",
+        "@chakra-ui/react": "^3.31.0",
+        "@emotion/react": "^11.14.0",
+        "@eslint/js": "^9.39.2",
+        "@stylistic/eslint-plugin": "^2.13.0",
+        "@types/node": "^22.19.5",
+        "@types/react": "^18.3.27",
+        "@types/react-dom": "^18.3.7",
+        "eslint": "^9.39.2",
+        "eslint-plugin-react": "^7.37.5",
+        "express": "^4.22.1",
+        "globals": "^15.15.0",
+        "react": "^18.3.1",
+        "react-dom": "^18.3.1",
+        "react-router-dom": "^6.30.3",
+        "typescript-eslint": "^8.53.0"
+    }
+}
