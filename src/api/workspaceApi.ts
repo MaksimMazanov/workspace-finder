@@ -1,4 +1,5 @@
 // API для работы с рабочими местами
+import { URLs } from '../__data__/urls';
 
 export interface Workplace {
   id: string;
@@ -35,7 +36,6 @@ export interface WorkplacesResponse {
 }
 
 // Базовый URL API
-const API_BASE_URL = '/api';
 
 // Поиск по ФИО или номеру места
 export async function searchWorkplaces(type: 'name' | 'place', query: string): Promise<SearchResponse> {
@@ -43,7 +43,7 @@ export async function searchWorkplaces(type: 'name' | 'place', query: string): P
   params.set('type', type);
   params.set('q', query);
 
-  const response = await fetch(`${API_BASE_URL}/search?${params.toString()}`);
+  const response = await fetch(`${URLs.apiBase}/search?${params.toString()}`);
 
   if (!response.ok) {
     throw new Error(`API Error: ${response.status}`);
@@ -57,7 +57,7 @@ export async function getWorkplaces(): Promise<WorkplacesResponse> {
   const params = new URLSearchParams();
   params.set('view', 'table');
 
-  const response = await fetch(`${API_BASE_URL}/workplaces?${params.toString()}`);
+  const response = await fetch(`${URLs.apiBase}/workplaces?${params.toString()}`);
 
   if (!response.ok) {
     throw new Error(`API Error: ${response.status}`);

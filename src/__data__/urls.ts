@@ -8,6 +8,7 @@ const makeUrl = (url) => baseUrl + url
 
 export const URLs = {
   baseUrl,
+  apiBase: getNavigationValue(`${pkg.name}.api`),
   auth: {
     url: makeUrl(navs[`link.${pkg.name}.auth`]),
     isOn: Boolean(navs[`link.${pkg.name}.auth`])
