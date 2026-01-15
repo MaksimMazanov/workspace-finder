@@ -85,19 +85,71 @@ import { Alert } from '@chakra-ui/react';
   <Alert.Description>Description</Alert.Description>
 </Alert.Root>
 
-// RadioGroup
-import { RadioGroup } from '@chakra-ui/react';
+// RadioGroup - ВАЖНО: правильная структура для кликабельности!
+import { RadioGroup, Box } from '@chakra-ui/react';
+// КРИТИЧНО: ItemControl и ItemText должны быть ВНУТРИ Item
+// Для полной кликабельности оборачивай в Box с onClick
 <RadioGroup.Root value={value} onValueChange={(details) => setValue(details.value)}>
-  <RadioGroup.Item value="option1">
-    <RadioGroup.ItemControl />
-    <RadioGroup.ItemText>Option 1</RadioGroup.ItemText>
-  </RadioGroup.Item>
+  <Box 
+    display="flex" 
+    alignItems="center" 
+    gap={2} 
+    cursor="pointer"
+    onClick={() => setValue('option1')}
+  >
+    <RadioGroup.Item value="option1">
+      <RadioGroup.ItemControl />
+      <RadioGroup.ItemText>Option 1</RadioGroup.ItemText>
+    </RadioGroup.Item>
+  </Box>
 </RadioGroup.Root>
 
 // Toast
 import { createToaster } from '@chakra-ui/react';
 const toaster = createToaster({ placement: 'top' });
 toaster.create({ title: 'Title', type: 'success' });
+```
+
+### Важные правила работы с интерактивными компонентами Chakra UI v3
+
+**RadioGroup - структура компонента:**
+- ❌ **НЕ разделяй** `ItemControl` и `ItemText` - они ДОЛЖНЫ быть внутри одного `Item`
+- ❌ **НЕ используй** несуществующий компонент `Label` из Chakra UI
+- ✅ **Для кликабельности текста:** оборачивай `RadioGroup.Item` в `Box` с `onClick` handler
+- ✅ **Структура контекста:** `Root` → `Item` → `ItemControl` + `ItemText` (обязательно в таком порядке)
+
+**Пример НЕПРАВИЛЬНО:**
+```typescript
+// ❌ Ошибка: ItemText вне Item - потеряет контекст
+<Box>
+  <RadioGroup.Item value="name">
+    <RadioGroup.ItemControl />
+  </RadioGroup.Item>
+  <RadioGroup.ItemText>Текст</RadioGroup.ItemText>
+</Box>
+
+// ❌ Ошибка: использование несуществующего Label
+import { Label } from '@chakra-ui/react'; // НЕ СУЩЕСТВУЕТ!
+```
+
+**Пример ПРАВИЛЬНО:**
+```typescript
+// ✅ Правильно: весь Item внутри кликабельного Box
+<Box cursor="pointer" onClick={() => setValue('option')}>
+  <RadioGroup.Item value="option">
+    <RadioGroup.ItemControl />
+    <RadioGroup.ItemText>Текст</RadioGroup.ItemText>
+  </RadioGroup.Item>
+</Box>
+
+// ✅ Или используй chakra.label (но не Label!)
+import { chakra } from '@chakra-ui/react';
+<chakra.label cursor="pointer">
+  <RadioGroup.Item value="option">
+    <RadioGroup.ItemControl />
+    <RadioGroup.ItemText>Текст</RadioGroup.ItemText>
+  </RadioGroup.Item>
+</chakra.label>
 ```
 
 ## Reference Documentation
@@ -161,6 +213,8 @@ API проксируется по адресу: http://localhost:8099/api
 
 ### Chakra UI
 - **ПЕРЕД использованием Chakra UI компонентов ВСЕГДА используй MCP Chakra UI для проверки актуального API**
+- **КРИТИЧНО:** При работе с compound components (RadioGroup, Table, Card) ВСЕГДА сохраняй правильную иерархию - дочерние компоненты (ItemText, ItemControl) ДОЛЖНЫ быть внутри родительских (Item) для работы React Context
+- **Для интерактивности:** Если стандартная структура не полностью кликабельна, оборачивай в `Box` с `onClick` handler
 
 ### КРИТИЧЕСКИ ВАЖНО: Работа с API путями и bro.config.js
 

@@ -7,6 +7,7 @@ import {
   VStack,
   Text,
   RadioGroup,
+  chakra,
   createToaster,
 } from '@chakra-ui/react';
 import { searchWorkplaces, Workplace } from '../api/workspaceApi';
@@ -91,18 +92,30 @@ export const SearchBar: React.FC<SearchBarProps> = ({ onResults, onLoading }) =>
           value={searchType}
           onValueChange={(details) => setSearchType(details.value as 'name' | 'place')}
         >
-          <HStack spacing={6} justify="center">
-            <Box as="label" display="flex" alignItems="center" cursor="pointer" gap={2}>
+          <HStack spacing={6} justify="center" flexWrap="wrap">
+            <Box 
+              display="flex" 
+              alignItems="center" 
+              gap={2} 
+              cursor="pointer"
+              onClick={() => setSearchType('name')}
+            >
               <RadioGroup.Item value="name">
                 <RadioGroup.ItemControl />
+                <RadioGroup.ItemText>По ФИО сотрудника</RadioGroup.ItemText>
               </RadioGroup.Item>
-              <RadioGroup.ItemText cursor="pointer">По ФИО сотрудника</RadioGroup.ItemText>
             </Box>
-            <Box as="label" display="flex" alignItems="center" cursor="pointer" gap={2}>
+            <Box 
+              display="flex" 
+              alignItems="center" 
+              gap={2} 
+              cursor="pointer"
+              onClick={() => setSearchType('place')}
+            >
               <RadioGroup.Item value="place">
                 <RadioGroup.ItemControl />
+                <RadioGroup.ItemText>По номеру места</RadioGroup.ItemText>
               </RadioGroup.Item>
-              <RadioGroup.ItemText cursor="pointer">По номеру места</RadioGroup.ItemText>
             </Box>
           </HStack>
         </RadioGroup.Root>
