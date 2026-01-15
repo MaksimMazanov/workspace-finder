@@ -191,9 +191,9 @@ router.get('/search', (req, res) => {
       workplace.status === 'occupied'
     );
   } else if (type === 'place') {
-    // Поиск по номеру места (точное совпадение)
+    // Поиск по номеру места (case-insensitive, частичное совпадение)
     results = workplaces.filter(workplace =>
-      workplace.placeNumber === q
+      workplace.placeNumber.toLowerCase().includes(q.toLowerCase())
     );
   } else {
     return res.status(400).json({
