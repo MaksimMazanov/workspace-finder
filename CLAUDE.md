@@ -117,61 +117,128 @@ Read these documents when working on specific areas:
 - [Chakra UI v3](https://www.chakra-ui.com/)
 - [TypeScript Documentation](https://www.typescriptlang.org/docs/)
 
+## Запуск проекта
+
+```bash
+npm start
+```
+
+После запуска проект будет расположен по адресу: http://localhost:8099/workspace-finder
+
+API проксируется по адресу: http://localhost:8099/api
+
 ## Специальные правила
-- Не останавливайся если есть ошибки на UI
+
+### Работа с кодом
+- Не используй стиль кода от языка Python в JS/TS
+- Node.js не кэширует старые модули, на нем стоит hot reload папки api
+- Не исправляй файлы из папки `stubs/` в терминале, там есть hot reload
+- Не редактируй файлы проекта в терминале
+
+### Работа с базой данных
+- Все API должны хранить данные в MongoDB, никаких моков и глобальных переменных
+- Текущая база данных MongoDB поднята в Docker
+- При проверке или доработке API используй MCP MongoDB
+
+### Тестирование и отладка
+- Не используй автотесты для поиска проблем, используй браузер
+- Тестируй после внесения изменений используя браузер
+- Пиши автотесты на Playwright только по функционалу который работает
+- На изменение автотестов на работающий функционал запрашивай подтверждение
+- Используй в качестве документации по тестам https://testing-library.com/
+
+### Качество кода
+- Не останавливайся если есть ошибки на UI, исправляй их
 - Проверяй что все ключи локализации имеют текстовки
 - Проверяй что все API выдают статус 200
-- Не заканчивай работу если есть любые ошибки, строй план выполнения задач 
-- Все API должны данные хранить в базе данных, никаких моков и глобальных переменных
-- Текущая база данных MongoDB поднята в Docker
-- На изменение автотестов на работающий функционал запрашивай подтверждение
+- Не заканчивай работу если есть ошибки, строй план выполнения задач
+
+### Документация и файлы
 - Не создавай инструкции, summary, report, документацию о внесенных изменениях
 - Не делай файлы с примерами
-- Запрещено создавать файлы типа: *REPORT*, *SUMMARY*, *DOCS*, *CHECKLIST*, *EXAMPLES*, *README*
+- Запрещено создавать файлы типа: REPORT, SUMMARY, DOCS, CHECKLIST, EXAMPLES, README
 - **НЕ создавай никакие файлы в корне проекта**
-- При проверке или доработке API используй MCP MongoDB
-- Не используй автотесты для поиска проблем, используй браузер
+
+### Chakra UI
 - **ПЕРЕД использованием Chakra UI компонентов ВСЕГДА используй MCP Chakra UI для проверки актуального API**
-запуск проекта
-npm start
 
-после запуска проект будет расположен по адресу http://localhost:8099/workspace-finder
-все API работает и проксируется по адресу http://localhost:8099/api
+### КРИТИЧЕСКИ ВАЖНО: Работа с API путями и bro.config.js
 
+**Никогда не хардкодь пути в коде!** Всегда используй конфигурацию из `bro.config.js` через `@brojs/cli`.
 
-не исправляй файлы из папки @stubs/ в powershell или в терминале, не надо перезагружать сервер, там есть hot reload
+#### Структура bro.config.js
+```javascript
+module.exports = {
+  navigations: {
+    'workspace-finder.main': '/workspace-finder',  // Используй getNavigationValue()
+    'link.workspace-finder.auth': '/auth'
+  },
+  config: {
+    'workspace-finder.api': '/api'  // Используй getConfigValue()
+  }
+}
+```
 
-нельзя трогать в bro.config.js .api ключ
+#### Функции @brojs/cli для чтения конфигурации
 
-не используй в js и typescript стиль кода от языка Python используй mcp context7 для получения code convention и code style проекта согласно тех стеку
+```typescript
+import { getNavigationValue, getConfigValue } from '@brojs/cli'
 
-не останавливайся если есть ошибки на ui, проверяй что все ключи локализации имеют текстовки
+// Для navigations используй getNavigationValue()
+const mainPath = getNavigationValue('workspace-finder.main')  // '/workspace-finder'
 
-проверяй что все api выдают статус 200
+// Для config используй getConfigValue()
+const apiBase = getConfigValue('workspace-finder.api')  // '/api'
+```
 
-не заканчивай работу если есть любые ошибки, строй план выполнения задач
+#### Правила работы с API путями
 
-все api должны данные хранить в базе данных, никаких моков и глобальных переменных, текущая база данных mongoDB которая поднята в doker
+1. **НИКОГДА не хардкодь `/api` в коде!**
+2. **Всегда используй `URLs.apiBase` из `src/__data__/urls.ts`**
+3. **В `src/__data__/urls.ts` используй `getConfigValue()` для чтения config:**
+   ```typescript
+   import { getConfigValue } from '@brojs/cli'
+   export const URLs = {
+     apiBase: getConfigValue(`${pkg.name}.api`)  // ПРАВИЛЬНО
+     // НЕ используй: getNavigationValue() - это только для navigations!
+   }
+   ```
+4. **В API файлах импортируй:**
+   ```typescript
+   import { URLs } from '../__data__/urls'
+   fetch(`${URLs.apiBase}/search`)  // ПРАВИЛЬНО
+   fetch('/api/search')  // НЕПРАВИЛЬНО - хардкод!
+   ```
+5. **В RTK Query используй:**
+   ```typescript
+   baseQuery: fetchBaseQuery({ baseUrl: URLs.apiBase })
+   ```
 
-тестируй после внесения изменений используя браузер и пиши автотесты на playwright по функционалу который работает
+#### Частые ошибки
 
-на изменение автотестов на работающий функционал запрашивай подтверждение от пользователя
+❌ **НЕПРАВИЛЬНО:**
+```typescript
+// Ошибка 1: Хардкод пути
+const response = await fetch('/api/workplaces')
 
-не создавай инструкции, summary, report
+// Ошибка 2: Использование getNavigationValue для config
+apiBase: getNavigationValue('workspace-finder.api')  // Вернет undefined!
 
-используй в качестве документации по написанию тестов @https://testing-library.com/
+// Ошибка 3: Хардкод константы
+const API_BASE_URL = '/api'
+```
 
-при проверке и доработке API используй mcp MongoDB
+✅ **ПРАВИЛЬНО:**
+```typescript
+// В src/__data__/urls.ts
+import { getConfigValue } from '@brojs/cli'
+export const URLs = {
+  apiBase: getConfigValue(`${pkg.name}.api`)
+}
 
-Node.js не кэширует старые модули, на нем стоит хот релоад папки api
+// В API файлах
+import { URLs } from '../__data__/urls'
+const response = await fetch(`${URLs.apiBase}/workplaces`)
+```
 
-не редактируй файлы проекта в терминале не создавай документацию о внесенных изменениях не используй автотесты для поиска проблем, используй браузер не используй хардкорные пути /api используй значение ключа из bro.config
-
-### ВАЖНО: Работа с API путями
-
-- НИКОГДА не хардкодь `/api` в коде!
-- Всегда используй URLs.apiBase из src/__data__/urls.ts
-- В API файлах импортируй: import { URLs } from '../urls'
-- В createApi используй: baseQuery: fetchBaseQuery({ baseUrl: URLs.apiBase })
-- Значение берется из bro.config.js ключ 'workspace-finder.api': '/api'
-- Это позволяет легко менять базовый путь API без правки кода
+Это позволяет легко менять базовый путь API без правки кода.
