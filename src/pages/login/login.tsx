@@ -34,6 +34,7 @@ export const LoginPage = () => {
     setIsLoading(true);
     try {
       const response = await loginUser(name.trim());
+      console.log('Login response:', response);
 
       if (response.success) {
         toaster.create({
@@ -42,7 +43,11 @@ export const LoginPage = () => {
           type: 'success'
         });
 
-        navigate(URLs.baseUrl);
+        console.log('Navigating to:', URLs.baseUrl);
+        // Use a small delay to ensure toast is visible before navigation
+        setTimeout(() => {
+          navigate(URLs.baseUrl);
+        }, 500);
       } else {
         toaster.create({
           title: 'Ошибка входа',
@@ -51,6 +56,7 @@ export const LoginPage = () => {
         });
       }
     } catch (error) {
+      console.error('Login error:', error);
       toaster.create({
         title: 'Ошибка',
         description: 'Не удалось подключиться к серверу',

@@ -7,9 +7,29 @@ const navs = getNavigation()
 const makeUrl = (url) => baseUrl + url
 
 // Determine API base URL
-// The API base should always be from config (which is /api)
-// This is independent of where the frontend is deployed
-const apiBase = getConfigValue(`${pkg.name}.api`)
+// The config value should be set in admin.bro-js.ru
+// But we also handle the case where it's accidentally set to the frontend path
+const configApiBase = getConfigValue(`${pkg.name}.api`)
+
+// If the config value looks like a frontend path (contains /ms/), 
+// extract just /api from it. Otherwise use the config value as-is.
+let apiBase = configApiBase || '/api'
+if (apiBase && apiBase.includes('/ms/') && apiBase !== '/api') {
+  // If someone accidentally set it to '/ms/workspace-finder', use '/api' instead
+  apiBase = '/api'
+}
+
+// Log URLs for debugging
+console.log('URLs Configuration:', {
+  baseUrl,
+  apiBase,
+  configApiBase,
+  pkgName: pkg.name,
+  navigations: {
+    main: getNavigationValue(`${pkg.name}.main`),
+    login: getNavigationValue(`${pkg.name}.login`)
+  }
+})
 
 export const URLs = {
   baseUrl,
