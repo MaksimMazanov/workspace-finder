@@ -19,6 +19,7 @@ module.exports = {
     },
   },
   config: {
+    // API path - on production this might be overridden by admin.bro-js.ru config
     'workspace-finder.api': '/api'
   },
   // Путь к кастомному HTML-шаблону prom-режима (оставьте undefined чтобы использовать дефолт)
