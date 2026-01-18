@@ -8,7 +8,7 @@ import {
   Spinner,
   Alert,
 } from '@chakra-ui/react';
-import { getWorkplaces, Block } from '../api/workspaceApi';
+import { getWorkplaces, Block, getCurrentUser, User } from '../api/workspaceApi';
 import { BlockTable } from './BlockTable';
 
 interface TableViewProps {
@@ -17,6 +17,7 @@ interface TableViewProps {
 
 export const TableView: React.FC<TableViewProps> = ({ refreshTrigger }) => {
   const [blocks, setBlocks] = useState<Block[]>([]);
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -24,12 +25,22 @@ export const TableView: React.FC<TableViewProps> = ({ refreshTrigger }) => {
     try {
       setLoading(true);
       setError(null);
-      const response = await getWorkplaces();
+      
+      // Load workplaces and current user in parallel
+      const [workplacesResponse, userResponse] = await Promise.all([
+        getWorkplaces(),
+        getCurrentUser()
+      ]);
 
-      if (response.success) {
-        setBlocks(response.blocks);
+      if (workplacesResponse.success) {
+        setBlocks(workplacesResponse.blocks);
       } else {
-        setError(response.error || 'Не удалось загрузить данные');
+        setError(workplacesResponse.error || 'Не удалось загрузить данные');
+      }
+
+      // Set user if available
+      if (userResponse.success && userResponse.user) {
+        setUser(userResponse.user);
       }
     } catch (err) {
       console.error('Failed to load workplaces:', err);
@@ -117,6 +128,11 @@ export const TableView: React.FC<TableViewProps> = ({ refreshTrigger }) => {
             Общая статистика
           </Heading>
           <Text fontSize="sm" color="blue.600">
+            {user && (
+              <>
+                Пользователь: <Text as="span" fontWeight="bold">{user.name}</Text> | {' '}
+              </>
+            )}
             Всего блоков: {blocks.length} | Всего мест:{' '}
             {blocks.reduce((sum, block) => sum + block.total, 0)} | Занято:{' '}
             {blocks.reduce((sum, block) => sum + block.occupied, 0)}

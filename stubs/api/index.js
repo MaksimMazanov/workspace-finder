@@ -419,6 +419,85 @@ router.get('/workplaces', async (req, res) => {
   }
 });
 
+// Authentication endpoints
+
+// POST /api/auth/login - Login user
+router.post('/auth/login', (req, res) => {
+  try {
+    const { name } = req.body;
+
+    // Validation: name is required and should be a string
+    if (!name || typeof name !== 'string') {
+      return res.status(400).json({
+        success: false,
+        error: 'Name is required'
+      });
+    }
+
+    const trimmedName = name.trim();
+
+    // Validation: name length >= 2
+    if (trimmedName.length < 2) {
+      return res.status(400).json({
+        success: false,
+        error: 'Name must be at least 2 characters'
+      });
+    }
+
+    // Validation: name length <= 100
+    if (trimmedName.length > 100) {
+      return res.status(400).json({
+        success: false,
+        error: 'Name must be less than 100 characters'
+      });
+    }
+
+    // Sanitize name: remove HTML tags and dangerous characters
+    const sanitizedName = trimmedName.replace(/<[^>]*>/g, '');
+
+    const user = {
+      name: sanitizedName,
+      enteredAt: new Date().toISOString()
+    };
+
+    // Optionally: save to MongoDB for logging
+    // TODO: Uncomment when database integration is ready
+    // if (mongoConnected && db) {
+    //   const usersCollection = db.collection('users');
+    //   await usersCollection.insertOne(user);
+    // }
+
+    res.json({
+      success: true,
+      user
+    });
+  } catch (error) {
+    console.error('Auth login error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
+  }
+});
+
+// GET /api/auth/me - Get current user
+router.get('/auth/me', (req, res) => {
+  try {
+    // In simplified version return null
+    // Frontend reads from localStorage
+    res.json({
+      success: true,
+      user: null
+    });
+  } catch (error) {
+    console.error('Auth me error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
+  }
+});
+
 router.use(timer());
 
 module.exports = router;

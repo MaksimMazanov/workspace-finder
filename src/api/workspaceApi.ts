@@ -35,6 +35,18 @@ export interface WorkplacesResponse {
   error?: string;
 }
 
+// Authentication types
+export interface User {
+  name: string;
+  enteredAt: string;
+}
+
+export interface AuthResponse {
+  success: boolean;
+  user?: User | null;
+  error?: string;
+}
+
 // Базовый URL API
 
 // Поиск по ФИО или номеру места
@@ -64,4 +76,62 @@ export async function getWorkplaces(): Promise<WorkplacesResponse> {
   }
 
   return await response.json();
+}
+
+// Authentication functions
+
+/**
+ * Login user with name
+ * Sends name to backend and saves user data to localStorage
+ */
+export async function loginUser(name: string): Promise<AuthResponse> {
+  try {
+    const response = await fetch(`${URLs.apiBase}/auth/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ name })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      return {
+        success: false,
+        error: errorData.error || 'Login failed'
+      };
+    }
+
+    const data = await response.json();
+
+    // Save to localStorage
+    if (data.success && data.user) {
+      localStorage.setItem('workspace-finder:user', JSON.stringify(data.user));
+    }
+
+    return data;
+  } catch (error) {
+    return {
+      success: false,
+      error: 'Failed to connect to server'
+    };
+  }
+}
+
+/**
+ * Get current user from localStorage
+ */
+export async function getCurrentUser(): Promise<AuthResponse> {
+  try {
+    // Read from localStorage
+    const userStr = localStorage.getItem('workspace-finder:user');
+    if (!userStr) {
+      return { success: true, user: null };
+    }
+
+    const user = JSON.parse(userStr);
+    return { success: true, user };
+  } catch (error) {
+    return { success: false, error: 'Invalid user data' };
+  }
 }

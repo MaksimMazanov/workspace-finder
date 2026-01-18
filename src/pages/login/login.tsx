@@ -12,14 +12,16 @@ import {
   Card
 } from '@chakra-ui/react';
 import { URLs } from '../../__data__/urls';
+import { loginUser } from '../../api/workspaceApi';
 
 const toaster = createToaster({ placement: 'top' });
 
 export const LoginPage = () => {
   const [name, setName] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     if (!name.trim()) {
       toaster.create({
         title: 'Ошибка',
@@ -29,19 +31,34 @@ export const LoginPage = () => {
       return;
     }
 
-    // Сохранение в localStorage
-    localStorage.setItem('workspace-finder:user', JSON.stringify({
-      name: name.trim(),
-      enteredAt: new Date().toISOString()
-    }));
+    setIsLoading(true);
+    try {
+      const response = await loginUser(name.trim());
 
-    toaster.create({
-      title: 'Вход выполнен',
-      description: `Добро пожаловать, ${name.trim()}!`,
-      type: 'success'
-    });
+      if (response.success) {
+        toaster.create({
+          title: 'Вход выполнен',
+          description: `Добро пожаловать, ${response.user?.name}!`,
+          type: 'success'
+        });
 
-    navigate(URLs.baseUrl);
+        navigate(URLs.baseUrl);
+      } else {
+        toaster.create({
+          title: 'Ошибка входа',
+          description: response.error || 'Не удалось войти',
+          type: 'error'
+        });
+      }
+    } catch (error) {
+      toaster.create({
+        title: 'Ошибка',
+        description: 'Не удалось подключиться к серверу',
+        type: 'error'
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleKeyPress = (event: React.KeyboardEvent) => {
@@ -83,8 +100,10 @@ export const LoginPage = () => {
                 size="lg"
                 onClick={handleLogin}
                 w="full"
+                loading={isLoading}
+                disabled={isLoading}
               >
-                Войти
+                {isLoading ? 'Загрузка...' : 'Войти'}
               </Button>
             </VStack>
           </VStack>
