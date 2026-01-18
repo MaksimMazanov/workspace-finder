@@ -10,6 +10,7 @@ module.exports = {
   /* use https://admin.bro-js.ru/ to create config, navigations and features */
   navigations: {
     'workspace-finder.main': '/workspace-finder',
+    'workspace-finder.login': '/workspace-finder/login',
     'link.workspace-finder.auth': '/auth'
   },
   features: {
