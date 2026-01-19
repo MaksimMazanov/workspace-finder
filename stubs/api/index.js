@@ -1,7 +1,11 @@
 const router = require('express').Router();
 const { MongoClient, ServerApiVersion } = require('mongodb');
+const jwt = require('jsonwebtoken');
 
 const timer = (time = 300) => (req, res, next) => setTimeout(next, time);
+
+// JWT Secret Key (in production, should be from environment variable)
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
 // MongoDB configuration
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017';
@@ -421,55 +425,67 @@ router.get('/workplaces', async (req, res) => {
 
 // Authentication endpoints
 
-// POST /api/auth/login - Login user
+// Test user credentials (for development)
+const TEST_USERS = [
+  { email: 'user@example.com', password: 'password123' },
+  { email: 'admin@example.com', password: 'admin123' },
+  { email: 'test@test.com', password: 'test123' }
+];
+
+// POST /api/auth/login - Login with email and password, return JWT token
 router.post('/auth/login', (req, res) => {
   try {
-    const { name } = req.body;
+    const { email, password } = req.body;
 
-    // Validation: name is required and should be a string
-    if (!name || typeof name !== 'string') {
+    // Validation
+    if (!email || !password) {
       return res.status(400).json({
         success: false,
-        error: 'Name is required'
+        error: 'Email and password are required'
       });
     }
 
-    const trimmedName = name.trim();
-
-    // Validation: name length >= 2
-    if (trimmedName.length < 2) {
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
       return res.status(400).json({
         success: false,
-        error: 'Name must be at least 2 characters'
+        error: 'Invalid email format'
       });
     }
 
-    // Validation: name length <= 100
-    if (trimmedName.length > 100) {
+    // Validate password length
+    if (password.length < 6) {
       return res.status(400).json({
         success: false,
-        error: 'Name must be less than 100 characters'
+        error: 'Password must be at least 6 characters'
       });
     }
 
-    // Sanitize name: remove HTML tags and dangerous characters
-    const sanitizedName = trimmedName.replace(/<[^>]*>/g, '');
+    // Check credentials against test users
+    const user = TEST_USERS.find(u => u.email === email && u.password === password);
+    
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid email or password'
+      });
+    }
 
-    const user = {
-      name: sanitizedName,
-      enteredAt: new Date().toISOString()
-    };
-
-    // Optionally: save to MongoDB for logging
-    // TODO: Uncomment when database integration is ready
-    // if (mongoConnected && db) {
-    //   const usersCollection = db.collection('users');
-    //   await usersCollection.insertOne(user);
-    // }
+    // Generate JWT token
+    const token = jwt.sign(
+      { email, iat: Date.now() },
+      JWT_SECRET,
+      { expiresIn: '24h' }
+    );
 
     res.json({
       success: true,
-      user
+      token,
+      user: {
+        email,
+        name: email.split('@')[0]
+      }
     });
   } catch (error) {
     console.error('Auth login error:', error);
@@ -480,17 +496,109 @@ router.post('/auth/login', (req, res) => {
   }
 });
 
-// GET /api/auth/me - Get current user
-router.get('/auth/me', (req, res) => {
+// Middleware to verify JWT token
+function verifyToken(req, res, next) {
   try {
-    // In simplified version return null
-    // Frontend reads from localStorage
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        error: 'No token provided'
+      });
+    }
+
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.user = decoded;
+    next();
+  } catch (error) {
+    res.status(401).json({
+      success: false,
+      error: 'Invalid or expired token'
+    });
+  }
+}
+
+// GET /api/auth/me - Get current user info (requires token)
+router.get('/auth/me', verifyToken, (req, res) => {
+  try {
     res.json({
       success: true,
-      user: null
+      user: {
+        email: req.user.email,
+        name: req.user.email.split('@')[0]
+      }
     });
   } catch (error) {
     console.error('Auth me error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
+  }
+});
+
+// POST /api/auth/register - Register new user
+router.post('/auth/register', (req, res) => {
+  try {
+    const { email, username, password } = req.body;
+
+    // Validation
+    if (!email || !username || !password) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email, username and password are required'
+      });
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid email format'
+      });
+    }
+
+    // Validate username (3-20 chars, letters, numbers, underscore)
+    const usernameRegex = /^[a-zA-Z0-9_]{3,20}$/;
+    if (!usernameRegex.test(username)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Username must be 3-20 characters and contain only letters, numbers, and underscores'
+      });
+    }
+
+    // Validate password length
+    if (password.length < 6) {
+      return res.status(400).json({
+        success: false,
+        error: 'Password must be at least 6 characters'
+      });
+    }
+
+    // Check if email already exists in TEST_USERS
+    const emailExists = TEST_USERS.some(u => u.email === email);
+    if (emailExists) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email already registered'
+      });
+    }
+
+    // For demo purposes, add to TEST_USERS (in production would save to database)
+    TEST_USERS.push({ email, password });
+
+    res.json({
+      success: true,
+      message: 'User registered successfully. You can now login.',
+      user: {
+        email,
+        username
+      }
+    });
+  } catch (error) {
+    console.error('Auth register error:', error);
     res.status(500).json({
       success: false,
       error: 'Internal server error'

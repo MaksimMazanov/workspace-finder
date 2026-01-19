@@ -17,15 +17,15 @@ import { loginUser } from '../../api/workspaceApi';
 const toaster = createToaster({ placement: 'top' });
 
 export const LoginPage = () => {
-  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleLogin = async () => {
-    if (!name.trim()) {
+    if (!email.trim() || !password.trim()) {
       toaster.create({
-        title: 'Ошибка',
-        description: 'Введите ваше имя',
+        description: 'Введите email и пароль',
         type: 'error'
       });
       return;
@@ -33,13 +33,12 @@ export const LoginPage = () => {
 
     setIsLoading(true);
     try {
-      const response = await loginUser(name.trim());
+      const response = await loginUser(email.trim(), password.trim());
       console.log('Login response:', response);
 
       if (response.success) {
         toaster.create({
-          title: 'Вход выполнен',
-          description: `Добро пожаловать, ${response.user?.name}!`,
+          description: `Добро пожаловать, ${response.user?.name || response.user?.email}!`,
           type: 'success'
         });
 
@@ -50,7 +49,6 @@ export const LoginPage = () => {
         }, 500);
       } else {
         toaster.create({
-          title: 'Ошибка входа',
           description: response.error || 'Не удалось войти',
           type: 'error'
         });
@@ -58,7 +56,6 @@ export const LoginPage = () => {
     } catch (error) {
       console.error('Login error:', error);
       toaster.create({
-        title: 'Ошибка',
         description: 'Не удалось подключиться к серверу',
         type: 'error'
       });
@@ -83,21 +80,41 @@ export const LoginPage = () => {
                 Добро пожаловать
               </Heading>
               <Text color="gray.600">
-                Введите ваше имя для доступа к приложению
+                Введите ваш email и пароль для входа
+              </Text>
+              <Text fontSize="xs" color="gray.500" mt={4}>
+                Тестовые учетные данные:
+                <br />
+                user@example.com / password123
               </Text>
             </Box>
 
             <VStack spacing={4} align="stretch">
               <Box>
                 <Text fontWeight="medium" mb={2}>
-                  Имя
+                  Email
                 </Text>
                 <Input
-                  placeholder="Введите ваше имя..."
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  placeholder="user@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   onKeyPress={handleKeyPress}
                   size="lg"
+                  type="email"
+                />
+              </Box>
+
+              <Box>
+                <Text fontWeight="medium" mb={2}>
+                  Пароль
+                </Text>
+                <Input
+                  placeholder="Введите пароль..."
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                  size="lg"
+                  type="password"
                 />
               </Box>
 
@@ -113,6 +130,22 @@ export const LoginPage = () => {
               </Button>
             </VStack>
           </VStack>
+
+          {/* Link to Register */}
+          <Box textAlign="center" mt={6}>
+            <Text fontSize="sm" color="gray.600">
+              Нет аккаунта?{' '}
+              <Text
+                as="button"
+                color="blue.600"
+                fontWeight="medium"
+                onClick={() => navigate(URLs.register)}
+                _hover={{ textDecoration: 'underline' }}
+              >
+                Зарегистрироваться
+              </Text>
+            </Text>
+          </Box>
         </Card.Body>
       </Card.Root>
     </Center>

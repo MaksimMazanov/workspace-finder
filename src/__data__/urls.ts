@@ -6,16 +6,22 @@ const baseUrl = getNavigationValue(`${pkg.name}.main`)
 const navs = getNavigation()
 const makeUrl = (url) => baseUrl + url
 
-// Determine API base URL
-// The config value should be set in admin.bro-js.ru
-// But we also handle the case where it's accidentally set to the frontend path
+// Determine API base URL from config
+// On production: if baseUrl is set, we should use baseUrl/api
+// On development: use /api from config
 const configApiBase = getConfigValue(`${pkg.name}.api`)
 
-// If the config value looks like a frontend path (contains /ms/), 
-// extract just /api from it. Otherwise use the config value as-is.
+// If baseUrl exists and is not root, use baseUrl as API base (e.g., /ms/workspace-finder)
+// Otherwise use the config value (/api)
 let apiBase = configApiBase || '/api'
-if (apiBase && apiBase.includes('/ms/') && apiBase !== '/api') {
-  // If someone accidentally set it to '/ms/workspace-finder', use '/api' instead
+
+// If config contains /ms/ path, it's likely the frontend path mistakenly used
+// In that case, API should be accessible from the same base
+if (apiBase && apiBase.includes('/ms/') && baseUrl && baseUrl.includes('/ms/')) {
+  // Both have /ms/, so API might be at the same base path
+  apiBase = baseUrl
+} else if (apiBase && apiBase.includes('/ms/') && apiBase !== '/api') {
+  // Config has /ms/ but baseUrl doesn't, use /api instead
   apiBase = '/api'
 }
 
@@ -27,14 +33,16 @@ console.log('URLs Configuration:', {
   pkgName: pkg.name,
   navigations: {
     main: getNavigationValue(`${pkg.name}.main`),
-    login: getNavigationValue(`${pkg.name}.login`)
+    login: getNavigationValue(`${pkg.name}.login`),
+    register: getNavigationValue(`${pkg.name}.register`)
   }
 })
 
 export const URLs = {
   baseUrl,
   apiBase,
-  login: makeUrl('/login'),
+  login: getNavigationValue(`${pkg.name}.login`) || makeUrl('/login'),
+  register: getNavigationValue(`${pkg.name}.register`) || makeUrl('/register'),
   auth: {
     url: makeUrl(navs[`link.${pkg.name}.auth`]),
     isOn: Boolean(navs[`link.${pkg.name}.auth`])

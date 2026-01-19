@@ -1,7 +1,7 @@
 # TASK-01: Страница входа (LoginPage)
 
 **Приоритет:** HIGH  
-**Статус:** TODO  
+**Статус:** DONE ✅  
 **Зависимости:** Нет  
 **Время выполнения:** ~2 часа
 
@@ -50,12 +50,49 @@ const handleLogin = async (email, password) => {
 
 ## Критерии приёмки
 
-- [ ] Форма email + password
-- [ ] POST на `/api/auth/login`
-- [ ] JWT в localStorage `accessToken`
-- [ ] Ошибки отображаются toast-уведомлениями
-- [ ] Успешный вход перенаправляет на `/`
-- [ ] Приватные роуты защищены (проверка accessToken)
+- [x] Форма email + password
+- [x] POST на `/api/auth/login`
+- [x] JWT в localStorage `accessToken`
+- [x] Ошибки отображаются toast-уведомлениями
+- [x] Успешный вход перенаправляет на `/`
+- [x] Приватные роуты защищены (проверка accessToken)
+- [x] Автоматическая переадресация на `/login` при отсутствии токена
+
+## Реализация
+
+### Компоненты
+
+1. **LoginPage** (`src/pages/login/login.tsx`)
+   - Форма с полями Email и Password
+   - Валидация email формата
+   - Валидация пароля (минимум 6 символов)
+   - JWT токен сохраняется в `localStorage['accessToken']`
+   - Toast-уведомления для ошибок и успеха
+   - Автоматический редирект на главную после успешного входа
+
+2. **ProtectedRoute** (`src/components/ProtectedRoute.tsx`)
+   - Проверяет наличие `accessToken` в localStorage
+   - Проверяет валидность токена через `/api/auth/me`
+   - Автоматически переадресовывает на `/login` если токен отсутствует или невалиден
+   - Показывает загрузочный экран во время проверки
+
+3. **Backend API** (`stubs/api/index.js`)
+   - `POST /api/auth/login` - аутентификация и выдача JWT токена
+   - `GET /api/auth/me` - получение информации о пользователе (требует токен)
+   - Middleware `verifyToken` для проверки JWT токена
+
+### Тестовые учетные данные
+
+```
+Email: user@example.com
+Password: password123
+
+Email: admin@example.com
+Password: admin123
+
+Email: test@test.com
+Password: test123
+```
 
 ## Связанные задачи
 

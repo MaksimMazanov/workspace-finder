@@ -172,12 +172,15 @@ Read these documents when working on specific areas:
 ## Запуск проекта
 
 ```bash
+npm install  # Всегда запускай после добавления новых зависимостей в package.json
 npm start
 ```
 
 После запуска проект будет расположен по адресу: http://localhost:8099/workspace-finder
 
 API проксируется по адресу: http://localhost:8099/api
+
+**ВАЖНО:** После добавления новых зависимостей в `package.json` ОБЯЗАТЕЛЬНО запускай `npm install` перед `npm start`!
 
 ## Специальные правила
 
@@ -208,7 +211,7 @@ API проксируется по адресу: http://localhost:8099/api
 ### Документация и файлы
 - Не создавай инструкции, summary, report, документацию о внесенных изменениях
 - Не делай файлы с примерами
-- Запрещено создавать файлы типа: REPORT, SUMMARY, DOCS, CHECKLIST, EXAMPLES, README
+- Запрещено создавать файлы типа: REPORT, SUMMARY, DOCS, CHECKLIST, EXAMPLES, README, отчет о выполненной работе
 - **НЕ создавай никакие файлы в корне проекта**
 
 ### Chakra UI

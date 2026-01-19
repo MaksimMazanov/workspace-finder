@@ -11,6 +11,7 @@ module.exports = {
   navigations: {
     'workspace-finder.main': '/workspace-finder',
     'workspace-finder.login': '/workspace-finder/login',
+    'workspace-finder.register': '/workspace-finder/register',
     'link.workspace-finder.auth': '/auth'
   },
   features: {

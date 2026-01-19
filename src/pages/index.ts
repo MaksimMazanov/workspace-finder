@@ -1,4 +1,7 @@
 import { lazy } from 'react'
 
-export const MainPage = lazy(() => import(/* webpackChunkName: 'main' */'./main'))
-export const LoginPage = lazy(() => import(/* webpackChunkName: 'login' */'./login'))
+const MainPage = lazy(() => import(/* webpackChunkName: 'main' */'./main'))
+const LoginPage = lazy(() => import(/* webpackChunkName: 'login' */'./login'))
+const RegisterPage = lazy(() => import(/* webpackChunkName: 'register' */'./register'))
+
+export { MainPage, LoginPage, RegisterPage }
