@@ -589,9 +589,16 @@ router.post('/auth/register', (req, res) => {
     // For demo purposes, add to TEST_USERS (in production would save to database)
     TEST_USERS.push({ email, password });
 
+    // Generate JWT token for registration
+    const token = jwt.sign(
+      { email, iat: Date.now() },
+      JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+
     res.json({
       success: true,
-      message: 'User registered successfully. You can now login.',
+      token,
       user: {
         email,
         username

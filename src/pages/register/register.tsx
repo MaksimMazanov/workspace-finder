@@ -80,14 +80,18 @@ export const RegisterPage = () => {
 
       const data = await response.json();
 
-      if (data.success) {
+      if (data.success && data.token) {
+        // Save token to localStorage
+        localStorage.setItem('accessToken', data.token);
+
         toaster.create({
-          description: 'Перенаправляем на форму входа...',
+          description: 'Регистрация успешна! Добро пожаловать!',
           type: 'success'
         });
 
+        // Redirect to main page after a short delay
         setTimeout(() => {
-          navigate(URLs.login);
+          navigate(URLs.baseUrl);
         }, 1500);
       } else {
         toaster.create({
