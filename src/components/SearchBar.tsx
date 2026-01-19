@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   Box,
   Input,
@@ -10,7 +10,8 @@ import {
   chakra,
   createToaster,
 } from '@chakra-ui/react';
-import { searchWorkplaces, Workplace } from '../api/workspaceApi';
+import { searchWorkplaces, Workplace, SearchResponse } from '../api/workspaceApi';
+import { useLocalStorageCache } from '../hooks/useLocalStorageCache';
 
 const toaster = createToaster({
   placement: 'top',
@@ -26,6 +27,44 @@ export const SearchBar: React.FC<SearchBarProps> = ({ onResults, onLoading }) =>
   const [searchType, setSearchType] = useState<'name' | 'place'>('name');
   const [query, setQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
+  const [lastSearchKey, setLastSearchKey] = useState<string | null>(null);
+  const searchCacheRef = useRef<Map<string, { data: SearchResponse; timestamp: number }>>(new Map());
+
+  // Create cache key for search results
+  const getSearchCacheKey = (type: 'name' | 'place', q: string): string => {
+    return `search:${type}:${q.trim()}`;
+  };
+
+  // Get search results from cache or fetch
+  const getSearchResults = useCallback(async (type: 'name' | 'place', q: string): Promise<SearchResponse> => {
+    const cacheKey = getSearchCacheKey(type, q);
+    const cached = searchCacheRef.current.get(cacheKey);
+    const now = Date.now();
+    const TTL = 5 * 60 * 1000; // 5 minutes
+
+    if (cached && now - cached.timestamp < TTL) {
+      console.log(`Cache hit for search: ${cacheKey}`);
+      return cached.data;
+    }
+
+    console.log(`Cache miss for search: ${cacheKey}`);
+    const response = await searchWorkplaces(type, q);
+
+    // Store in cache
+    searchCacheRef.current.set(cacheKey, {
+      data: response,
+      timestamp: now,
+    });
+
+    // Clean up old entries to prevent memory leaks
+    for (const [key, entry] of searchCacheRef.current.entries()) {
+      if (now - entry.timestamp > TTL) {
+        searchCacheRef.current.delete(key);
+      }
+    }
+
+    return response;
+  }, []);
 
   const handleSearch = async () => {
     if (!query.trim()) {
@@ -39,9 +78,11 @@ export const SearchBar: React.FC<SearchBarProps> = ({ onResults, onLoading }) =>
 
     setIsSearching(true);
     onLoading(true);
+    const cacheKey = getSearchCacheKey(searchType, query);
+    setLastSearchKey(cacheKey);
 
     try {
-      const response = await searchWorkplaces(searchType, query.trim());
+      const response = await getSearchResults(searchType, query.trim());
 
       if (response.success) {
         onResults(response.results);

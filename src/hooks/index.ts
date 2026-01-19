@@ -1,0 +1,1 @@
+export { useLocalStorageCache } from './useLocalStorageCache';

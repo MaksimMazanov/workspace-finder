@@ -8,8 +8,9 @@ import {
   Spinner,
   Alert,
 } from '@chakra-ui/react';
-import { getWorkplaces, Block, getCurrentUser, User } from '../api/workspaceApi';
+import { getWorkplaces, Block, getCurrentUser, User, WorkplacesResponse } from '../api/workspaceApi';
 import { BlockTable } from './BlockTable';
+import { useLocalStorageCache } from '../hooks/useLocalStorageCache';
 
 interface TableViewProps {
   refreshTrigger?: number; // Для принудительного обновления данных
@@ -18,43 +19,59 @@ interface TableViewProps {
 export const TableView: React.FC<TableViewProps> = ({ refreshTrigger }) => {
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const loadWorkplaces = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      // Load workplaces and current user in parallel
-      const [workplacesResponse, userResponse] = await Promise.all([
-        getWorkplaces(),
-        getCurrentUser()
-      ]);
-
-      if (workplacesResponse.success) {
-        setBlocks(workplacesResponse.blocks);
-      } else {
-        setError(workplacesResponse.error || 'Не удалось загрузить данные');
-      }
-
-      // Set user if available
-      if (userResponse.success && userResponse.user) {
-        setUser(userResponse.user);
-      }
-    } catch (err) {
-      console.error('Failed to load workplaces:', err);
-      setError('Не удалось загрузить данные. Проверьте подключение.');
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Use cache hook for workplaces data
+  const { data: cachedWorkplaces, loading: workplacesLoading, error: workplacesError } = useLocalStorageCache<WorkplacesResponse>(
+    'workplaces',
+    getWorkplaces,
+    5 * 60 * 1000 // 5 minutes
+  );
 
   useEffect(() => {
-    loadWorkplaces();
+    if (cachedWorkplaces) {
+      if (cachedWorkplaces.success) {
+        setBlocks(cachedWorkplaces.blocks);
+        setError(null);
+      } else {
+        setError(cachedWorkplaces.error || 'Не удалось загрузить данные');
+      }
+    }
+  }, [cachedWorkplaces]);
+
+  // Load current user separately (not cached)
+  useEffect(() => {
+    const loadUser = async () => {
+      try {
+        const userResponse = await getCurrentUser();
+        if (userResponse.success && userResponse.user) {
+          setUser(userResponse.user);
+        }
+      } catch (err) {
+        console.error('Failed to load user:', err);
+      }
+    };
+
+    loadUser();
   }, [refreshTrigger]);
 
-  if (loading) {
+  // Show error if workplaces failed to load and no cached data
+  if (workplacesError && !blocks.length) {
+    return (
+      <Alert.Root status="error" borderRadius="md">
+        <Alert.Indicator />
+        <Box>
+          <Alert.Title>Ошибка загрузки!</Alert.Title>
+          <Alert.Description>
+            {error || 'Не удалось загрузить данные. Проверьте подключение.'}
+          </Alert.Description>
+        </Box>
+      </Alert.Root>
+    );
+  }
+
+  // Show spinner only if loading and no cached data available
+  if (workplacesLoading && !blocks.length) {
     return (
       <Box textAlign="center" py={8}>
         <Spinner size="lg" color="blue.500" />
@@ -62,18 +79,6 @@ export const TableView: React.FC<TableViewProps> = ({ refreshTrigger }) => {
           Загрузка данных...
         </Text>
       </Box>
-    );
-  }
-
-  if (error) {
-    return (
-      <Alert.Root status="error" borderRadius="md">
-        <Alert.Indicator />
-        <Box>
-          <Alert.Title>Ошибка загрузки!</Alert.Title>
-          <Alert.Description>{error}</Alert.Description>
-        </Box>
-      </Alert.Root>
     );
   }
 
