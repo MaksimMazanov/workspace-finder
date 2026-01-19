@@ -90,7 +90,10 @@ export const TableView: React.FC<TableViewProps> = ({ refreshTrigger }) => {
   }
 
   // Сортируем блоки по коду
-  const sortedBlocks = [...blocks].sort((a, b) => a.code.localeCompare(b.code));
+  const sortedBlocks = [...blocks].sort((a, b) => {
+    if (!a.code || !b.code) return 0;
+    return a.code.localeCompare(b.code);
+  });
 
   return (
     <VStack spacing={6} align="stretch">

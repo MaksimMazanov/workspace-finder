@@ -321,6 +321,7 @@ function getCollection() {
         fallbackWorkplaces.forEach(doc => {
           if (!grouped[doc.blockCode]) {
             grouped[doc.blockCode] = {
+              _id: doc.blockCode,
               code: doc.blockCode,
               name: doc.blockCode,
               places: [],
@@ -334,7 +335,10 @@ function getCollection() {
             grouped[doc.blockCode].occupied++;
           }
         });
-        return Object.values(grouped).sort((a, b) => a.code.localeCompare(b.code));
+        return Object.values(grouped).sort((a, b) => {
+          if (!a.code || !b.code) return 0;
+          return a.code.localeCompare(b.code);
+        });
       }
     })
   };
@@ -408,7 +412,25 @@ router.get('/workplaces', async (req, res) => {
 
     // Use aggregation to group by blockCode
     const coll = getCollection();
-    const blocks = await coll.aggregate([]).toArray();
+    const pipeline = [
+      {
+        $group: {
+          _id: '$blockCode',
+          code: { $first: '$blockCode' },
+          name: { $first: '$blockCode' },
+          places: { $push: '$$ROOT' },
+          total: { $sum: 1 },
+          occupied: {
+            $sum: { $cond: [{ $eq: ['$status', 'occupied'] }, 1, 0] }
+          }
+        }
+      },
+      {
+        $sort: { code: 1 }
+      }
+    ];
+
+    const blocks = await coll.aggregate(pipeline).toArray();
 
     res.json({
       success: true,
