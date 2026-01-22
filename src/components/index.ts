@@ -1,3 +1,4 @@
+export { AdminRoute } from './AdminRoute';
 export { BlockTable } from './BlockTable';
 export { ProtectedRoute } from './ProtectedRoute';
 export { ResultCard } from './ResultCard';

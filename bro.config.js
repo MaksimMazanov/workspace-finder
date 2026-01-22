@@ -12,6 +12,8 @@ module.exports = {
     'workspace-finder.main': '/workspace-finder',
     'workspace-finder.login': '/workspace-finder/login',
     'workspace-finder.register': '/workspace-finder/register',
+    'workspace-finder.admin-login': '/workspace-finder/admin/login',
+    'workspace-finder.admin': '/workspace-finder/admin',
     'link.workspace-finder.auth': '/auth'
   },
   features: {

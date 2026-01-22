@@ -1,11 +1,20 @@
 const router = require('express').Router();
 const { MongoClient, ServerApiVersion } = require('mongodb');
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
 
 const timer = (time = 300) => (req, res, next) => setTimeout(next, time);
 
 // JWT Secret Key (in production, should be from environment variable)
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+
+// Admin password hash (bcrypt). Default: hash of 'admin123'
+// To generate new: node -e "const bcrypt=require('bcryptjs'); bcrypt.hash('YOUR_ADMIN_PASSWORD', 12).then(console.log)"
+const ADMIN_PASSWORD_HASH = process.env.ADMIN_PASSWORD_HASH || '$2a$12$REucL0GH7UG8g/AyrgKW4Od7SPFRGzSPyKU.Wd2is5a3qUEr8ArIC';
+
+// Collections for audit logging
+let auditLog;
+let importLog;
 
 // MongoDB configuration
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017';
@@ -259,12 +268,22 @@ async function connectToDatabase() {
     
     db = client.db(DB_NAME);
     collection = db.collection(COLLECTION_NAME);
+    auditLog = db.collection('audit_log');
+    importLog = db.collection('import_log');
     mongoConnected = true;
     
     // Create indexes for performance
     await collection.createIndex({ placeNumber: 1 });
     await collection.createIndex({ employeeName: 1 });
     await collection.createIndex({ blockCode: 1 });
+    
+    // Create audit log indexes
+    await auditLog.createIndex({ timestamp: 1 });
+    await auditLog.createIndex({ eventType: 1 });
+    
+    // Create import log indexes
+    await importLog.createIndex({ timestamp: 1 });
+    
     console.log('Indexes created');
     
     // Initialize data if collection is empty
@@ -343,6 +362,21 @@ function getCollection() {
     })
   };
 }
+
+// Middleware to parse cookies
+router.use((req, res, next) => {
+  const cookieHeader = req.get('cookie');
+  req.cookies = {};
+  if (cookieHeader) {
+    cookieHeader.split(';').forEach(cookie => {
+      const [key, value] = cookie.trim().split('=');
+      if (key && value) {
+        req.cookies[key] = decodeURIComponent(value);
+      }
+    });
+  }
+  next();
+});
 
 // API endpoints
 
@@ -454,6 +488,107 @@ const TEST_USERS = [
   { email: 'test@test.com', password: 'test123' }
 ];
 
+// Simple in-memory rate limiter for admin login
+const loginAttempts = new Map();
+const RATE_LIMIT_WINDOW = 15 * 60 * 1000; // 15 minutes
+const RATE_LIMIT_MAX = 5; // 5 attempts
+
+function checkRateLimit(ip) {
+  const now = Date.now();
+  const key = `login_${ip}`;
+  
+  if (!loginAttempts.has(key)) {
+    loginAttempts.set(key, { count: 1, resetTime: now + RATE_LIMIT_WINDOW });
+    return true;
+  }
+  
+  const attempt = loginAttempts.get(key);
+  
+  if (now > attempt.resetTime) {
+    // Window expired, reset
+    loginAttempts.set(key, { count: 1, resetTime: now + RATE_LIMIT_WINDOW });
+    return true;
+  }
+  
+  if (attempt.count >= RATE_LIMIT_MAX) {
+    return false;
+  }
+  
+  attempt.count++;
+  return true;
+}
+
+// Middleware to check rate limit
+function adminLoginLimiter(req, res, next) {
+  const ip = req.ip || req.connection.remoteAddress || '0.0.0.0';
+  if (!checkRateLimit(ip)) {
+    return res.status(429).json({
+      success: false,
+      error: 'Too many login attempts, please try again later'
+    });
+  }
+  next();
+}
+
+// Middleware to verify admin session cookie
+function requireAdmin(req, res, next) {
+  try {
+    const token = req.cookies?.wf_admin_session;
+    
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        error: 'Unauthorized: Admin session required'
+      });
+    }
+
+    const decoded = jwt.verify(token, JWT_SECRET);
+    if (decoded.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        error: 'Forbidden: Admin role required'
+      });
+    }
+    
+    req.adminUser = decoded;
+    next();
+  } catch (error) {
+    return res.status(401).json({
+      success: false,
+      error: 'Unauthorized: Invalid or expired session'
+    });
+  }
+}
+
+// Helper function to log audit event
+async function logAuditEvent(eventType, details = {}) {
+  try {
+    if (auditLog) {
+      await auditLog.insertOne({
+        eventType,
+        timestamp: new Date(),
+        ...details
+      });
+    }
+  } catch (error) {
+    console.error('Error logging audit event:', error);
+  }
+}
+
+// Helper function to log import event
+async function logImportEvent(importDetails) {
+  try {
+    if (importLog) {
+      await importLog.insertOne({
+        timestamp: new Date(),
+        ...importDetails
+      });
+    }
+  } catch (error) {
+    console.error('Error logging import event:', error);
+  }
+}
+
 // POST /api/auth/login - Login with email and password, return JWT token
 router.post('/auth/login', (req, res) => {
   try {
@@ -541,24 +676,6 @@ function verifyToken(req, res, next) {
   }
 }
 
-// GET /api/auth/me - Get current user info (requires token)
-router.get('/auth/me', verifyToken, (req, res) => {
-  try {
-    res.json({
-      success: true,
-      user: {
-        email: req.user.email,
-        name: req.user.email.split('@')[0]
-      }
-    });
-  } catch (error) {
-    console.error('Auth me error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Internal server error'
-    });
-  }
-});
 
 // POST /api/auth/register - Register new user
 router.post('/auth/register', (req, res) => {
@@ -628,6 +745,151 @@ router.post('/auth/register', (req, res) => {
     });
   } catch (error) {
     console.error('Auth register error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
+  }
+});
+
+// ============ ADMIN ENDPOINTS ============
+
+// POST /api/admin/upload - Upload XLS file (admin only)
+router.post('/admin/upload', requireAdmin, async (req, res) => {
+  try {
+    // For now, just log the upload and return success
+    // In production, would parse XLS file here
+    const fileName = req.body?.fileName || 'unknown';
+    
+    await logImportEvent({
+      adminUser: req.adminUser?.role,
+      fileName,
+      status: 'success',
+      rowsProcessed: 0,
+      errors: []
+    });
+
+    res.json({
+      success: true,
+      message: 'File uploaded successfully'
+    });
+  } catch (error) {
+    console.error('Admin upload error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
+  }
+});
+
+// ============ ADMIN AUTH ENDPOINTS ============
+
+// POST /api/auth/admin/login - Admin login with password
+router.post('/auth/admin/login', adminLoginLimiter, async (req, res) => {
+  try {
+    const { password } = req.body;
+
+    if (!password) {
+      await logAuditEvent('admin_login_attempt', {
+        success: false,
+        reason: 'missing_password',
+        ip: req.ip,
+        userAgent: req.get('user-agent')
+      });
+      return res.status(400).json({
+        success: false,
+        error: 'Password is required'
+      });
+    }
+
+    // Compare password with hash
+    const passwordMatch = await bcrypt.compare(password, ADMIN_PASSWORD_HASH);
+    
+    if (!passwordMatch) {
+      await logAuditEvent('admin_login_attempt', {
+        success: false,
+        reason: 'invalid_password',
+        ip: req.ip,
+        userAgent: req.get('user-agent')
+      });
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid password'
+      });
+    }
+
+    // Generate JWT token for admin
+    const token = jwt.sign(
+      { role: 'admin', iat: Date.now() },
+      JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+
+    // Set HTTP-only cookie
+    res.cookie('wf_admin_session', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production', // HTTPS only in production
+      sameSite: 'strict',
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      path: '/'
+    });
+
+    await logAuditEvent('admin_login_success', {
+      ip: req.ip,
+      userAgent: req.get('user-agent')
+    });
+
+    res.json({
+      success: true,
+      role: 'admin'
+    });
+  } catch (error) {
+    console.error('Admin login error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
+  }
+});
+
+// POST /api/auth/logout - Logout and clear admin session
+router.post('/auth/logout', (req, res) => {
+  res.clearCookie('wf_admin_session', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+    path: '/'
+  });
+
+  res.json({
+    success: true
+  });
+});
+
+// GET /api/auth/me - Get current user role
+router.get('/auth/me', (req, res) => {
+  try {
+    const token = req.cookies?.wf_admin_session;
+    
+    if (token) {
+      try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        return res.json({
+          success: true,
+          role: decoded.role || 'user'
+        });
+      } catch (error) {
+        // Invalid token, treat as user
+      }
+    }
+
+    // Default to user role
+    res.json({
+      success: true,
+      role: 'user'
+    });
+  } catch (error) {
+    console.error('Auth me error:', error);
     res.status(500).json({
       success: false,
       error: 'Internal server error'

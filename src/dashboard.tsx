@@ -2,8 +2,8 @@ import React, { Suspense } from 'react'
 import { Route, Routes } from 'react-router-dom'
 
 import { URLs } from './__data__/urls'
-import { MainPage, LoginPage, RegisterPage } from './pages'
-import { ProtectedRoute } from './components'
+import { MainPage, LoginPage, RegisterPage, AdminLoginPage, AdminPage } from './pages'
+import { ProtectedRoute, AdminRoute } from './components'
 
 const PageWrapper = ({ children }: React.PropsWithChildren) => (
   <Suspense fallback={<div>Loading...</div>}>{children}</Suspense>
@@ -35,6 +35,24 @@ export const Dashboard = () => {
             <ProtectedRoute>
               <MainPage />
             </ProtectedRoute>
+          </PageWrapper>
+        }
+      />
+      <Route
+        path="/workspace-finder/admin/login"
+        element={
+          <PageWrapper>
+            <AdminLoginPage />
+          </PageWrapper>
+        }
+      />
+      <Route
+        path="/workspace-finder/admin"
+        element={
+          <PageWrapper>
+            <AdminRoute>
+              <AdminPage />
+            </AdminRoute>
           </PageWrapper>
         }
       />
