@@ -91,7 +91,7 @@ export const RegisterPage = () => {
 
         // Redirect to main page after a short delay
         setTimeout(() => {
-          navigate(URLs.baseUrl);
+          navigate('/');
         }, 1500);
       } else {
         toaster.create({
@@ -237,7 +237,7 @@ export const RegisterPage = () => {
                   as="button"
                   color="blue.600"
                   fontWeight="medium"
-                  onClick={() => navigate(URLs.login)}
+                  onClick={() => navigate('/login')}
                   _hover={{ textDecoration: 'underline' }}
                 >
                   Войти

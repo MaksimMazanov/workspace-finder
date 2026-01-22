@@ -1,5 +1,7 @@
 import React from 'react'
 import { BrowserRouter } from 'react-router-dom'
+import { getNavigationValue } from '@brojs/cli'
+import pkg from '../package.json'
 
 import { Dashboard } from './dashboard'
 import { Provider } from './theme'
@@ -40,9 +42,11 @@ class ErrorBoundary extends React.Component<
 }
 
 const App = () => {
+  const basename = getNavigationValue(`${pkg.name}.main`) || '/workspace-finder'
+  
   return (
     <ErrorBoundary>
-      <BrowserRouter>
+      <BrowserRouter basename={basename}>
         <Provider>
           <Dashboard />
         </Provider>

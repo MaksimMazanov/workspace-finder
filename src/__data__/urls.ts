@@ -41,8 +41,12 @@ console.log('URLs Configuration:', {
 export const URLs = {
   baseUrl,
   apiBase,
-  login: getNavigationValue(`${pkg.name}.login`) || makeUrl('/login'),
-  register: getNavigationValue(`${pkg.name}.register`) || makeUrl('/register'),
+  // For navigation within the app (relative to basename)
+  login: '/login',
+  register: '/register',
+  // Full paths for external links
+  loginFull: getNavigationValue(`${pkg.name}.login`) || makeUrl('/login'),
+  registerFull: getNavigationValue(`${pkg.name}.register`) || makeUrl('/register'),
   auth: {
     url: makeUrl(navs[`link.${pkg.name}.auth`]),
     isOn: Boolean(navs[`link.${pkg.name}.auth`])

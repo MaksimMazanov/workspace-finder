@@ -13,7 +13,7 @@ export const Dashboard = () => {
   return (
     <Routes>
       <Route
-        path={URLs.login}
+        path="/login"
         element={
           <PageWrapper>
             <LoginPage />
@@ -21,7 +21,7 @@ export const Dashboard = () => {
         }
       />
       <Route
-        path={URLs.register}
+        path="/register"
         element={
           <PageWrapper>
             <RegisterPage />
@@ -29,7 +29,7 @@ export const Dashboard = () => {
         }
       />
       <Route
-        path={URLs.baseUrl}
+        path="/"
         element={
           <PageWrapper>
             <ProtectedRoute>
@@ -39,7 +39,7 @@ export const Dashboard = () => {
         }
       />
       <Route
-        path="/workspace-finder/admin/login"
+        path="/admin/login"
         element={
           <PageWrapper>
             <AdminLoginPage />
@@ -47,7 +47,7 @@ export const Dashboard = () => {
         }
       />
       <Route
-        path="/workspace-finder/admin"
+        path="/admin"
         element={
           <PageWrapper>
             <AdminRoute>

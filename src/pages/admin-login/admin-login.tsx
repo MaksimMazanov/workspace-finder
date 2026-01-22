@@ -53,7 +53,7 @@ export const AdminLoginPage = () => {
 
         // Navigate to admin dashboard
         setTimeout(() => {
-          navigate('/workspace-finder/admin');
+          navigate('/admin');
         }, 500);
       } else {
         toaster.create({
@@ -124,7 +124,7 @@ export const AdminLoginPage = () => {
               <Button
                 width="100%"
                 variant="outline"
-                onClick={() => navigate('/workspace-finder')}
+                onClick={() => navigate('/')}
                 disabled={isLoading}
               >
                 Вернуться в приложение

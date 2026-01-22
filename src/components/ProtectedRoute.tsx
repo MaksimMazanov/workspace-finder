@@ -52,7 +52,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 
   // Not authenticated - redirect to login
   if (!isAuthenticated) {
-    return <Navigate to={URLs.login} replace />;
+    return <Navigate to="/login" replace />;
   }
 
   // Authenticated - render children

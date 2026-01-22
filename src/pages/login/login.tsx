@@ -42,10 +42,10 @@ export const LoginPage = () => {
           type: 'success'
         });
 
-        console.log('Navigating to:', URLs.baseUrl);
+        console.log('Navigating to main page...');
         // Use a small delay to ensure toast is visible before navigation
         setTimeout(() => {
-          navigate(URLs.baseUrl);
+          navigate('/');
         }, 500);
       } else {
         toaster.create({
@@ -139,7 +139,7 @@ export const LoginPage = () => {
                 as="button"
                 color="blue.600"
                 fontWeight="medium"
-                onClick={() => navigate(URLs.register)}
+                onClick={() => navigate('/register')}
                 _hover={{ textDecoration: 'underline' }}
               >
                 Зарегистрироваться
