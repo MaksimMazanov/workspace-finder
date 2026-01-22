@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Container,
   VStack,
@@ -8,6 +9,8 @@ import {
   Separator,
   SimpleGrid,
   Spinner,
+  Button,
+  HStack,
 } from '@chakra-ui/react';
 import { SearchBar } from '../../components/SearchBar';
 import { ResultCard } from '../../components/ResultCard';
@@ -17,6 +20,7 @@ import { Workplace } from '../../api/workspaceApi';
 export const MainPage = () => {
   const [searchResults, setSearchResults] = useState<Workplace[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const navigate = useNavigate();
   const bgColor = 'gray.50';
 
   const handleSearchResults = (results: Workplace[]) => {
@@ -27,8 +31,34 @@ export const MainPage = () => {
     setIsSearching(loading);
   };
 
+  const handleLogout = () => {
+    // Clear authentication data
+    localStorage.removeItem('accessToken');
+    // Redirect to login
+    navigate('/login');
+  };
+
   return (
     <Box minH="100vh" bg={bgColor}>
+      {/* Header with logout button */}
+      <Box bg="white" boxShadow="sm" py={4}>
+        <Container maxW="container.xl">
+          <HStack justify="space-between" align="center">
+            <Heading size="lg" color="blue.600">
+              WorkspaceFinder
+            </Heading>
+            <Button
+              colorScheme="red"
+              variant="outline"
+              size="sm"
+              onClick={handleLogout}
+            >
+              Выход
+            </Button>
+          </HStack>
+        </Container>
+      </Box>
+
       <Container maxW="container.xl" py={8}>
         <VStack spacing={8} align="stretch">
           {/* Заголовок */}
