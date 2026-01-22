@@ -630,8 +630,9 @@ router.post('/auth/login', (req, res) => {
     }
 
     // Generate JWT token
+    const userName = email.split('@')[0];
     const token = jwt.sign(
-      { email, iat: Date.now() },
+      { email, name: userName, iat: Date.now() },
       JWT_SECRET,
       { expiresIn: '24h' }
     );
@@ -641,7 +642,7 @@ router.post('/auth/login', (req, res) => {
       token,
       user: {
         email,
-        name: email.split('@')[0]
+        name: userName
       }
     });
   } catch (error) {
@@ -869,14 +870,24 @@ router.post('/auth/logout', (req, res) => {
 // GET /api/auth/me - Get current user role
 router.get('/auth/me', (req, res) => {
   try {
-    const token = req.cookies?.wf_admin_session;
+    let token = req.cookies?.wf_admin_session;
+    
+    // If no token in cookies, check Authorization header
+    if (!token && req.headers.authorization) {
+      const authHeader = req.headers.authorization;
+      if (authHeader.startsWith('Bearer ')) {
+        token = authHeader.substring(7); // Remove 'Bearer ' prefix
+      }
+    }
     
     if (token) {
       try {
         const decoded = jwt.verify(token, JWT_SECRET);
         return res.json({
           success: true,
-          role: decoded.role || 'user'
+          role: decoded.role || 'user',
+          email: decoded.email,
+          name: decoded.name
         });
       } catch (error) {
         // Invalid token, treat as user

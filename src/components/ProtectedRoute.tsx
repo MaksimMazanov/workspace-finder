@@ -23,7 +23,8 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
       // Verify token by calling /auth/me
       const response = await getCurrentUser();
       
-      if (response.success && response.user) {
+      // If we have a token and response is successful, user is authenticated
+      if (response.success) {
         setIsAuthenticated(true);
       } else {
         setIsAuthenticated(false);
