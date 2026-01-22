@@ -299,3 +299,254 @@ const response = await fetch(`${URLs.apiBase}/workplaces`)
 ```
 
 Это позволяет легко менять базовый путь API без правки кода.
+
+### КРИТИЧЕСКИ ВАЖНО: React Router и навигация с basename
+
+**Приложение работает по пути `/workspace-finder`, поэтому React Router ОБЯЗАТЕЛЬНО должен знать об этом!**
+
+#### Правильная настройка BrowserRouter
+
+В `src/app.tsx` **ВСЕГДА** должен быть настроен `basename`:
+
+```typescript
+import { BrowserRouter } from 'react-router-dom'
+import { getNavigationValue } from '@brojs/cli'
+import pkg from '../package.json'
+
+const App = () => {
+  const basename = getNavigationValue(`${pkg.name}.main`) || '/workspace-finder'
+  
+  return (
+    <BrowserRouter basename={basename}>
+      {/* routes */}
+    </BrowserRouter>
+  )
+}
+```
+
+#### Правила работы с путями в Routes
+
+**КРИТИЧНО:** Когда BrowserRouter имеет `basename`, все пути в `<Route>` должны быть **относительными**:
+
+✅ **ПРАВИЛЬНО:**
+```typescript
+<Routes>
+  <Route path="/" element={<MainPage />} />           // /workspace-finder/
+  <Route path="/login" element={<LoginPage />} />     // /workspace-finder/login
+  <Route path="/admin" element={<AdminPage />} />     // /workspace-finder/admin
+</Routes>
+```
+
+❌ **НЕПРАВИЛЬНО:**
+```typescript
+<Routes>
+  <Route path="/workspace-finder" element={<MainPage />} />        // Дублирование!
+  <Route path="/workspace-finder/login" element={<LoginPage />} />  // Дублирование!
+</Routes>
+```
+
+#### Навигация с navigate()
+
+При использовании `navigate()` используй **относительные пути**:
+
+✅ **ПРАВИЛЬНО:**
+```typescript
+import { useNavigate } from 'react-router-dom'
+
+const navigate = useNavigate()
+navigate('/')          // → /workspace-finder/
+navigate('/login')     // → /workspace-finder/login
+navigate('/admin')     // → /workspace-finder/admin
+```
+
+❌ **НЕПРАВИЛЬНО:**
+```typescript
+navigate('/workspace-finder')        // Лишний basename
+navigate('/workspace-finder/login')  // Лишний basename
+```
+
+#### Структура URLs для навигации
+
+В `src/__data__/urls.ts`:
+
+```typescript
+export const URLs = {
+  baseUrl,  // '/workspace-finder' - для внешних ссылок
+  apiBase,  // '/api' - для API запросов
+  // Для navigate() используй относительные пути
+  login: '/login',
+  register: '/register',
+  admin: '/admin',
+}
+```
+
+### КРИТИЧЕСКИ ВАЖНО: JWT аутентификация и проверка токенов
+
+#### Структура JWT токена
+
+JWT токен **ОБЯЗАТЕЛЬНО** должен содержать минимально необходимые поля:
+
+```typescript
+// При создании токена (API):
+const token = jwt.sign(
+  { 
+    email: user.email, 
+    name: user.name,
+    iat: Date.now() 
+  },
+  JWT_SECRET,
+  { expiresIn: '24h' }
+)
+```
+
+#### API endpoint /auth/me
+
+**КРИТИЧНО:** Endpoint `/api/auth/me` должен проверять **два источника** токена:
+
+```javascript
+router.get('/auth/me', (req, res) => {
+  let token = req.cookies?.wf_admin_session;
+  
+  // ВАЖНО: Проверяй Authorization header!
+  if (!token && req.headers.authorization) {
+    const authHeader = req.headers.authorization;
+    if (authHeader.startsWith('Bearer ')) {
+      token = authHeader.substring(7);
+    }
+  }
+  
+  if (token) {
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET);
+      return res.json({
+        success: true,
+        role: decoded.role || 'user',
+        email: decoded.email,
+        name: decoded.name
+      });
+    } catch (error) {
+      // Invalid token
+    }
+  }
+  
+  // Default response
+  res.json({ success: true, role: 'user' });
+});
+```
+
+#### Проверка токена в getCurrentUser()
+
+В `src/api/workspaceApi.ts`:
+
+```typescript
+export async function getCurrentUser(): Promise<AuthResponse> {
+  try {
+    const token = localStorage.getItem('accessToken');
+    
+    if (!token) {
+      return { success: true, user: null };
+    }
+
+    const response = await fetch(`${URLs.apiBase}/auth/me`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    if (!response.ok) {
+      localStorage.removeItem('accessToken');
+      return { success: true, user: null };
+    }
+
+    return await response.json();
+  } catch (error) {
+    return { success: false, error: 'Failed to get user info' };
+  }
+}
+```
+
+#### ProtectedRoute проверка
+
+В `src/components/ProtectedRoute.tsx`:
+
+```typescript
+const response = await getCurrentUser();
+
+// ВАЖНО: Проверяй только success, а НЕ response.user!
+// API может не возвращать user поле, только success и role
+if (response.success) {
+  setIsAuthenticated(true);
+} else {
+  setIsAuthenticated(false);
+}
+```
+
+❌ **НЕПРАВИЛЬНО:**
+```typescript
+// Это сломает аутентификацию если API не возвращает user!
+if (response.success && response.user) {
+  setIsAuthenticated(true);
+}
+```
+
+#### Цикл работы аутентификации
+
+1. **Вход:** POST `/api/auth/login` → получаем `{ success, token, user }`
+2. **Сохранение:** `localStorage.setItem('accessToken', token)`
+3. **Переадресация:** `navigate('/')` → BrowserRouter обрабатывает basename → браузер показывает `/workspace-finder/`
+4. **Защита маршрута:** ProtectedRoute монтируется
+5. **Проверка токена:** GET `/api/auth/me` с header `Authorization: Bearer ${token}`
+6. **Верификация:** API проверяет токен и возвращает `{ success: true, role, email, name }`
+7. **Доступ:** ProtectedRoute рендерит дочерние компоненты (MainPage)
+
+#### Частые ошибки аутентификации
+
+❌ **НЕПРАВИЛЬНО:**
+```typescript
+// 1. API не проверяет Authorization header
+router.get('/auth/me', (req, res) => {
+  const token = req.cookies?.token;  // ТОЛЬКО куки - сломает фронтенд!
+  // ...
+});
+
+// 2. JWT не содержит данные пользователя
+const token = jwt.sign({ email }, JWT_SECRET);  // Нет name!
+
+// 3. ProtectedRoute проверяет несуществующее поле
+if (response.success && response.user) {  // user может быть undefined!
+
+// 4. navigate с полным путем
+navigate('/workspace-finder/');  // Лишний basename!
+```
+
+✅ **ПРАВИЛЬНО:**
+```typescript
+// 1. API проверяет ОБА источника
+let token = req.cookies?.token;
+if (!token && req.headers.authorization) {
+  token = req.headers.authorization.substring(7);
+}
+
+// 2. JWT содержит все нужные данные
+const token = jwt.sign({ email, name }, JWT_SECRET);
+
+// 3. ProtectedRoute проверяет правильно
+if (response.success) {  // Достаточно success!
+
+// 4. navigate с относительным путем
+navigate('/');  // basename добавится автоматически!
+```
+
+#### Чеклист при проблемах с аутентификацией
+
+Если после входа не происходит переадресация:
+
+1. ✅ **Проверь BrowserRouter:** есть ли `basename={getNavigationValue(...)}`?
+2. ✅ **Проверь Routes:** используются ли относительные пути (`/login`, `/`, а не `/workspace-finder/login`)?
+3. ✅ **Проверь navigate():** используется ли `navigate('/')` вместо `navigate(URLs.baseUrl)`?
+4. ✅ **Проверь API /auth/me:** поддерживает ли Authorization header?
+5. ✅ **Проверь JWT токен:** содержит ли `email` и `name`?
+6. ✅ **Проверь ProtectedRoute:** проверяется ли только `response.success`?
+7. ✅ **Проверь localStorage:** сохраняется ли токен в `accessToken`?
+
+Все 7 пунктов должны быть выполнены для правильной работы!
