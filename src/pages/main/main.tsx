@@ -15,11 +15,13 @@ import {
 import { SearchBar } from '../../components/SearchBar';
 import { ResultCard } from '../../components/ResultCard';
 import { TableView } from '../../components/TableView';
+import { ViewSwitcher, ViewMode } from '../../components/ViewSwitcher';
 import { Workplace } from '../../api/workspaceApi';
 
 export const MainPage = () => {
   const [searchResults, setSearchResults] = useState<Workplace[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [activeView, setActiveView] = useState<ViewMode>('table');
   const navigate = useNavigate();
   const bgColor = 'gray.50';
 
@@ -38,8 +40,12 @@ export const MainPage = () => {
     navigate('/login');
   };
 
+  const handleViewChange = (view: ViewMode) => {
+    setActiveView(view);
+  };
+
   return (
-    <Box minH="100vh" bg={bgColor}>
+    <Box minH="100vh" bg={bgColor} pb={{ base: '70px', md: 0 }}>
       {/* Header with logout button */}
       <Box bg="white" boxShadow="sm" py={4}>
         <Container maxW="container.xl">
@@ -116,10 +122,16 @@ export const MainPage = () => {
           {/* Разделитель */}
           <Separator />
 
-          {/* Таблица блоков */}
-          <TableView />
+          {/* Отображение активного вида */}
+          {activeView === 'table' && <TableView />}
+          {activeView === 'coworking' && <Text>CoworkingView - TODO TASK-06</Text>}
+          {activeView === 'stats' && <Text>StatsView - TODO TASK-07</Text>}
+          {activeView === 'map' && <Text>MapView - TODO TASK-08</Text>}
         </VStack>
       </Container>
+
+      {/* ViewSwitcher внизу */}
+      <ViewSwitcher activeView={activeView} onViewChange={handleViewChange} />
     </Box>
   );
 };
