@@ -483,10 +483,12 @@ router.get('/workplaces', async (req, res) => {
 
 // Test user credentials (for development)
 const TEST_USERS = [
-  { email: 'user@example.com', password: 'password123' },
-  { email: 'admin@example.com', password: 'admin123' },
-  { email: 'test@test.com', password: 'test123' }
+  { id: '1', email: 'user@example.com', password: 'password123' },
+  { id: '2', email: 'admin@example.com', password: 'admin123' },
+  { id: '3', email: 'test@test.com', password: 'test123' }
 ];
+
+let nextUserId = 4;
 
 // Simple in-memory rate limiter for admin login
 const loginAttempts = new Map();
@@ -596,59 +598,38 @@ router.post('/auth/login', (req, res) => {
 
     // Validation
     if (!email || !password) {
-      return res.status(400).json({
-        success: false,
-        error: 'Email and password are required'
-      });
+      return res.status(400).json({ error: 'Email and password are required' });
     }
 
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid email format'
-      });
+      return res.status(400).json({ error: 'Invalid email format' });
     }
 
     // Validate password length
     if (password.length < 6) {
-      return res.status(400).json({
-        success: false,
-        error: 'Password must be at least 6 characters'
-      });
+      return res.status(400).json({ error: 'Password must be at least 6 characters' });
     }
 
     // Check credentials against test users
-    const user = TEST_USERS.find(u => u.email === email && u.password === password);
+    const user = TEST_USERS.find(u => u.email === email);
     
-    if (!user) {
-      return res.status(401).json({
-        success: false,
-        error: 'Invalid email or password'
-      });
+    if (!user || user.password !== password) {
+      return res.status(401).json({ error: 'Invalid email or password' });
     }
 
     // Generate JWT token
-    const userName = email.split('@')[0];
     const token = jwt.sign(
-      { email, name: userName, iat: Date.now() },
+      { userId: user.id },
       JWT_SECRET,
-      { expiresIn: '24h' }
+      { expiresIn: '1h' }
     );
 
-    res.json({
-      success: true,
-      token,
-      user: {
-        email,
-        name: userName
-      }
-    });
+    res.json({ token });
   } catch (error) {
     console.error('Auth login error:', error);
     res.status(500).json({
-      success: false,
       error: 'Internal server error'
     });
   }
@@ -660,20 +641,23 @@ function verifyToken(req, res, next) {
     const token = req.headers.authorization?.replace('Bearer ', '');
     
     if (!token) {
-      return res.status(401).json({
-        success: false,
-        error: 'No token provided'
-      });
+      return res.status(401).json({ error: 'No token provided' });
     }
 
     const decoded = jwt.verify(token, JWT_SECRET);
-    req.user = decoded;
+    if (!decoded?.userId) {
+      return res.status(401).json({ error: 'Invalid token payload' });
+    }
+
+    const user = TEST_USERS.find(currentUser => currentUser.id === decoded.userId);
+    if (!user) {
+      return res.status(401).json({ error: 'User not found' });
+    }
+
+    req.user = user;
     next();
   } catch (error) {
-    res.status(401).json({
-      success: false,
-      error: 'Invalid or expired token'
-    });
+    res.status(401).json({ error: 'Invalid or expired token' });
   }
 }
 
@@ -681,73 +665,46 @@ function verifyToken(req, res, next) {
 // POST /api/auth/register - Register new user
 router.post('/auth/register', (req, res) => {
   try {
-    const { email, username, password } = req.body;
+    const { email, password } = req.body;
 
     // Validation
-    if (!email || !username || !password) {
-      return res.status(400).json({
-        success: false,
-        error: 'Email, username and password are required'
-      });
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password are required' });
     }
 
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid email format'
-      });
-    }
-
-    // Validate username (3-20 chars, letters, numbers, underscore)
-    const usernameRegex = /^[a-zA-Z0-9_]{3,20}$/;
-    if (!usernameRegex.test(username)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Username must be 3-20 characters and contain only letters, numbers, and underscores'
-      });
+      return res.status(400).json({ error: 'Invalid email format' });
     }
 
     // Validate password length
     if (password.length < 6) {
-      return res.status(400).json({
-        success: false,
-        error: 'Password must be at least 6 characters'
-      });
+      return res.status(400).json({ error: 'Password must be at least 6 characters' });
     }
 
     // Check if email already exists in TEST_USERS
     const emailExists = TEST_USERS.some(u => u.email === email);
     if (emailExists) {
-      return res.status(400).json({
-        success: false,
-        error: 'Email already registered'
-      });
+      return res.status(400).json({ error: 'Email already registered' });
     }
 
     // For demo purposes, add to TEST_USERS (in production would save to database)
-    TEST_USERS.push({ email, password });
+    const newUser = { id: String(nextUserId), email, password };
+    nextUserId += 1;
+    TEST_USERS.push(newUser);
 
     // Generate JWT token for registration
     const token = jwt.sign(
-      { email, iat: Date.now() },
+      { userId: newUser.id },
       JWT_SECRET,
-      { expiresIn: '24h' }
+      { expiresIn: '1h' }
     );
 
-    res.json({
-      success: true,
-      token,
-      user: {
-        email,
-        username
-      }
-    });
+    res.json({ token });
   } catch (error) {
     console.error('Auth register error:', error);
     res.status(500).json({
-      success: false,
       error: 'Internal server error'
     });
   }
@@ -867,44 +824,37 @@ router.post('/auth/logout', (req, res) => {
   });
 });
 
-// GET /api/auth/me - Get current user role
-router.get('/auth/me', (req, res) => {
+// GET /api/auth/me - Get current user
+router.get('/auth/me', verifyToken, (req, res) => {
   try {
-    let token = req.cookies?.wf_admin_session;
-    
-    // If no token in cookies, check Authorization header
-    if (!token && req.headers.authorization) {
-      const authHeader = req.headers.authorization;
-      if (authHeader.startsWith('Bearer ')) {
-        token = authHeader.substring(7); // Remove 'Bearer ' prefix
-      }
-    }
-    
-    if (token) {
-      try {
-        const decoded = jwt.verify(token, JWT_SECRET);
-        return res.json({
-          success: true,
-          role: decoded.role || 'user',
-          email: decoded.email,
-          name: decoded.name
-        });
-      } catch (error) {
-        // Invalid token, treat as user
-      }
-    }
-
-    // Default to user role
     res.json({
-      success: true,
-      role: 'user'
+      id: req.user.id,
+      email: req.user.email
     });
   } catch (error) {
     console.error('Auth me error:', error);
     res.status(500).json({
-      success: false,
       error: 'Internal server error'
     });
+  }
+});
+
+// GET /api/auth/admin/me - Get current admin role
+router.get('/auth/admin/me', (req, res) => {
+  try {
+    const token = req.cookies?.wf_admin_session;
+    if (!token) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const decoded = jwt.verify(token, JWT_SECRET);
+    if (decoded?.role !== 'admin') {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    return res.json({ role: 'admin' });
+  } catch (error) {
+    return res.status(401).json({ error: 'Unauthorized' });
   }
 });
 

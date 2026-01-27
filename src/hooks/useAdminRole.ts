@@ -14,12 +14,16 @@ export const useAdminRole = (): UseAdminRoleReturn => {
   useEffect(() => {
     const checkRole = async () => {
       try {
-        const response = await fetch(`${URLs.apiBase}/auth/me`, {
+        const response = await fetch(`${URLs.apiBase}/auth/admin/me`, {
           credentials: 'include'
         });
+        if (!response.ok) {
+          setRole('user');
+          return;
+        }
         const data = await response.json();
-        if (data.success && data.role) {
-          setRole(data.role as 'admin' | 'user');
+        if (data.role === 'admin') {
+          setRole('admin');
         } else {
           setRole('user');
         }
