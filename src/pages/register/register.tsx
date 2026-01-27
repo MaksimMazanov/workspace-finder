@@ -80,7 +80,7 @@ export const RegisterPage = () => {
 
       const data = await response.json();
 
-      if (data.success && data.token) {
+      if (response.ok && data.token) {
         // Save token to localStorage
         localStorage.setItem('accessToken', data.token);
 

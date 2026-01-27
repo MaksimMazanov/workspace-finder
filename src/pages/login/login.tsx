@@ -11,7 +11,6 @@ import {
   Center,
   Card
 } from '@chakra-ui/react';
-import { URLs } from '../../__data__/urls';
 import { loginUser } from '../../api/workspaceApi';
 
 const toaster = createToaster({ placement: 'top' });
@@ -38,7 +37,7 @@ export const LoginPage = () => {
 
       if (response.success) {
         toaster.create({
-          description: `Добро пожаловать, ${response.user?.name || response.user?.email}!`,
+          description: `Добро пожаловать, ${email.trim()}!`,
           type: 'success'
         });
 

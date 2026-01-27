@@ -37,14 +37,14 @@ export interface WorkplacesResponse {
 
 // Authentication types
 export interface User {
-  email?: string;
-  name?: string;
+  id: string;
+  email: string;
 }
 
 export interface AuthResponse {
   success: boolean;
   token?: string;
-  user?: User;
+  user?: User | null;
   error?: string;
 }
 
@@ -114,11 +114,11 @@ export async function loginUser(email: string, password: string): Promise<AuthRe
     console.log('Login success:', data);
 
     // Save JWT token to localStorage
-    if (data.success && data.token) {
+    if (data.token) {
       localStorage.setItem('accessToken', data.token);
     }
 
-    return data;
+    return { success: true, token: data.token };
   } catch (error) {
     console.error('Login exception:', error);
     return {
@@ -136,7 +136,7 @@ export async function getCurrentUser(): Promise<AuthResponse> {
     const token = localStorage.getItem('accessToken');
     
     if (!token) {
-      return { success: true, user: null };
+      return { success: false, user: null };
     }
 
     const url = `${URLs.apiBase}/auth/me`;
@@ -149,11 +149,11 @@ export async function getCurrentUser(): Promise<AuthResponse> {
     if (!response.ok) {
       // Token is invalid, remove it
       localStorage.removeItem('accessToken');
-      return { success: true, user: null };
+      return { success: false, user: null };
     }
 
     const data = await response.json();
-    return data;
+    return { success: true, user: data };
   } catch (error) {
     return { success: false, error: 'Failed to get user info' };
   }
