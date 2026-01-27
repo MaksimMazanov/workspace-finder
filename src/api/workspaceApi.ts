@@ -35,6 +35,30 @@ export interface WorkplacesResponse {
   error?: string;
 }
 
+export interface CoworkingPlace {
+  id: string;
+  placeNumber: string;
+  employeeName: string;
+  department: string;
+  team: string;
+}
+
+export interface Coworking {
+  id: string;
+  name: string;
+  total: number;
+  occupied: number;
+  places: CoworkingPlace[];
+}
+
+export interface CoworkingsResponse {
+  success: boolean;
+  total: number;
+  totalOccupied: number;
+  coworkings: Coworking[];
+  error?: string;
+}
+
 // Authentication types
 export interface User {
   id: string;
@@ -71,6 +95,17 @@ export async function getWorkplaces(): Promise<WorkplacesResponse> {
   params.set('view', 'table');
 
   const response = await fetch(`${URLs.apiBase}/workplaces?${params.toString()}`);
+
+  if (!response.ok) {
+    throw new Error(`API Error: ${response.status}`);
+  }
+
+  return await response.json();
+}
+
+// Получить список коворкингов
+export async function getCoworkings(): Promise<CoworkingsResponse> {
+  const response = await fetch(`${URLs.apiBase}/coworkings`);
 
   if (!response.ok) {
     throw new Error(`API Error: ${response.status}`);
