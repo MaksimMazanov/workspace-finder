@@ -67,6 +67,9 @@ export const MainPage = () => {
 
       <Container maxW="container.xl" py={8}>
         <VStack spacing={8} align="stretch">
+          <Box display={{ base: 'none', md: 'block' }}>
+            <ViewSwitcher activeView={activeView} onViewChange={handleViewChange} />
+          </Box>
           {/* Заголовок */}
           <Box textAlign="center">
             <Heading
@@ -131,7 +134,9 @@ export const MainPage = () => {
       </Container>
 
       {/* ViewSwitcher внизу */}
-      <ViewSwitcher activeView={activeView} onViewChange={handleViewChange} />
+      <Box display={{ base: 'block', md: 'none' }}>
+        <ViewSwitcher activeView={activeView} onViewChange={handleViewChange} />
+      </Box>
     </Box>
   );
 };

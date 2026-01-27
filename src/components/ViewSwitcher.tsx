@@ -26,9 +26,11 @@ const ViewButton: React.FC<ViewButtonProps> = ({ icon, label, isActive, onClick 
       transition="color 0.2s"
       flex={1}
       py={2}
+      h="100%"
+      justify="center"
     >
-      <Text fontSize="2xl">{icon}</Text>
-      <Text fontSize="xs" fontWeight={isActive ? 'semibold' : 'normal'}>
+      <Text fontSize="24px">{icon}</Text>
+      <Text fontSize="12px" fontWeight={isActive ? 'semibold' : 'normal'}>
         {label}
       </Text>
     </VStack>
@@ -54,8 +56,9 @@ export const ViewSwitcher: React.FC<ViewSwitcherProps> = ({ activeView, onViewCh
       borderColor="gray.200"
       shadow="md"
       zIndex={10}
+      h={{ base: '60px', md: '80px' }}
     >
-      <HStack spacing={0} justify="space-around" maxW="container.xl" mx="auto">
+      <HStack spacing={0} justify="space-around" maxW="container.xl" mx="auto" h="100%">
         {views.map((view) => (
           <ViewButton
             key={view.id}
