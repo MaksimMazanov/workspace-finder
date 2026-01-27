@@ -241,6 +241,93 @@ const testData = [
     status: "occupied",
     createdAt: new Date(),
     updatedAt: new Date()
+  },
+
+  // Коворкинги
+  {
+    placeNumber: "C.01.001",
+    placeName: "C.01.001",
+    zone: "Coworking Zone 1",
+    blockCode: "C.01",
+    type: "Coworking",
+    coworkingType: "Coworking-1",
+    category: "Коворкинг",
+    employeeName: "Романов Павел Игоревич",
+    tabNumber: "013",
+    department: "Департамент ИТ",
+    team: "Platform",
+    position: "DevOps Engineer",
+    status: "occupied",
+    createdAt: new Date(),
+    updatedAt: new Date()
+  },
+  {
+    placeNumber: "C.01.002",
+    placeName: "C.01.002",
+    zone: "Coworking Zone 1",
+    blockCode: "C.01",
+    type: "Coworking",
+    coworkingType: "Coworking-1",
+    category: "Коворкинг",
+    employeeName: "",
+    tabNumber: "",
+    department: "",
+    team: "",
+    position: "",
+    status: "free",
+    createdAt: new Date(),
+    updatedAt: new Date()
+  },
+  {
+    placeNumber: "C.01.003",
+    placeName: "C.01.003",
+    zone: "Coworking Zone 1",
+    blockCode: "C.01",
+    type: "Coworking",
+    coworkingType: "Coworking-1",
+    category: "Коворкинг",
+    employeeName: "Егорова Марина Алексеевна",
+    tabNumber: "014",
+    department: "Департамент маркетинга",
+    team: "Digital",
+    position: "Маркетолог",
+    status: "occupied",
+    createdAt: new Date(),
+    updatedAt: new Date()
+  },
+  {
+    placeNumber: "C.02.001",
+    placeName: "C.02.001",
+    zone: "Coworking Zone 2",
+    blockCode: "C.02",
+    type: "Coworking",
+    coworkingType: "Coworking-2",
+    category: "Коворкинг",
+    employeeName: "",
+    tabNumber: "",
+    department: "",
+    team: "",
+    position: "",
+    status: "free",
+    createdAt: new Date(),
+    updatedAt: new Date()
+  },
+  {
+    placeNumber: "C.02.002",
+    placeName: "C.02.002",
+    zone: "Coworking Zone 2",
+    blockCode: "C.02",
+    type: "Coworking",
+    coworkingType: "Coworking-2",
+    category: "Коворкинг",
+    employeeName: "Лебедев Николай Сергеевич",
+    tabNumber: "015",
+    department: "Департамент аналитики",
+    team: "Analytics",
+    position: "Data Analyst",
+    status: "occupied",
+    createdAt: new Date(),
+    updatedAt: new Date()
   }
 ];
 
@@ -475,6 +562,77 @@ router.get('/workplaces', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Internal server error'
+    });
+  }
+});
+
+// Получить список коворкингов
+router.get('/coworkings', async (req, res) => {
+  try {
+    const coll = getCollection();
+    const coworkingPlaces = await coll.find({ type: 'Coworking' }).toArray();
+
+    coworkingPlaces.sort((a, b) => {
+      const typeCompare = (a.coworkingType || '').localeCompare(b.coworkingType || '');
+      if (typeCompare !== 0) {
+        return typeCompare;
+      }
+      return (a.placeNumber || '').localeCompare(b.placeNumber || '');
+    });
+
+    const coworkingsMap = new Map();
+
+    coworkingPlaces.forEach(place => {
+      const coworkingName = place.coworkingType || 'Unknown';
+
+      if (!coworkingsMap.has(coworkingName)) {
+        coworkingsMap.set(coworkingName, {
+          id: coworkingName.toLowerCase().replace(/\s+/g, '-'),
+          name: coworkingName,
+          total: 0,
+          occupied: 0,
+          places: []
+        });
+      }
+
+      const coworking = coworkingsMap.get(coworkingName);
+      coworking.total += 1;
+
+      if (place.status === 'occupied' && place.employeeName) {
+        coworking.occupied += 1;
+        const placeId = typeof place._id === 'string'
+          ? place._id
+          : place._id?.toString?.() || place.id || place.placeNumber;
+
+        coworking.places.push({
+          id: placeId,
+          placeNumber: place.placeNumber,
+          employeeName: place.employeeName,
+          department: place.department || '',
+          team: place.team || ''
+        });
+      }
+    });
+
+    const coworkings = Array.from(coworkingsMap.values()).map(coworking => ({
+      ...coworking,
+      places: coworking.places.sort((a, b) => a.placeNumber.localeCompare(b.placeNumber))
+    })).sort((a, b) => a.name.localeCompare(b.name));
+
+    const totalOccupied = coworkings.reduce((sum, coworking) => sum + coworking.occupied, 0);
+    const total = coworkings.reduce((sum, coworking) => sum + coworking.total, 0);
+
+    res.json({
+      success: true,
+      total,
+      totalOccupied,
+      coworkings
+    });
+  } catch (error) {
+    console.error('Coworkings error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch coworkings'
     });
   }
 });

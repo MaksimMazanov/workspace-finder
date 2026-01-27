@@ -15,6 +15,7 @@ import {
 import { SearchBar } from '../../components/SearchBar';
 import { ResultCard } from '../../components/ResultCard';
 import { TableView } from '../../components/TableView';
+import { CoworkingView } from '../../components/CoworkingView';
 import { ViewSwitcher, ViewMode } from '../../components/ViewSwitcher';
 import { Workplace } from '../../api/workspaceApi';
 
@@ -127,7 +128,7 @@ export const MainPage = () => {
 
           {/* Отображение активного вида */}
           {activeView === 'table' && <TableView />}
-          {activeView === 'coworking' && <Text>CoworkingView - TODO TASK-06</Text>}
+          {activeView === 'coworking' && <CoworkingView />}
           {activeView === 'stats' && <Text>StatsView - TODO TASK-07</Text>}
           {activeView === 'map' && <Text>MapView - TODO TASK-08</Text>}
         </VStack>
