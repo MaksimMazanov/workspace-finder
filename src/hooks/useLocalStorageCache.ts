@@ -171,5 +171,9 @@ export function useLocalStorageCache<T>(
     loadData();
   }, [key, ttl, fetcher, getCachedData, setCacheData]);
 
+  useEffect(() => {
+    cleanupExpiredCache();
+  }, [cleanupExpiredCache]);
+
   return { data, loading, error };
 }

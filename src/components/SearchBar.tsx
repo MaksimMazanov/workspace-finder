@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   Box,
   Input,
@@ -11,12 +11,14 @@ import {
   createToaster,
 } from '@chakra-ui/react';
 import { searchWorkplaces, Workplace, SearchResponse } from '../api/workspaceApi';
-import { useLocalStorageCache } from '../hooks/useLocalStorageCache';
 
 const toaster = createToaster({
   placement: 'top',
   duration: 3000,
 });
+
+const CACHE_PREFIX = 'workspace-finder:cache:';
+const SEARCH_TTL = 5 * 60 * 1000; // 5 minutes
 
 interface SearchBarProps {
   onResults: (results: Workplace[]) => void;
@@ -27,44 +29,81 @@ export const SearchBar: React.FC<SearchBarProps> = ({ onResults, onLoading }) =>
   const [searchType, setSearchType] = useState<'name' | 'place'>('name');
   const [query, setQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
-  const [lastSearchKey, setLastSearchKey] = useState<string | null>(null);
-  const searchCacheRef = useRef<Map<string, { data: SearchResponse; timestamp: number }>>(new Map());
 
   // Create cache key for search results
-  const getSearchCacheKey = (type: 'name' | 'place', q: string): string => {
-    return `search:${type}:${q.trim()}`;
-  };
+  const getSearchCacheKey = (type: 'name' | 'place', q: string): string => (
+    `search:${type}:${q.trim()}`
+  );
 
-  // Get search results from cache or fetch
-  const getSearchResults = useCallback(async (type: 'name' | 'place', q: string): Promise<SearchResponse> => {
-    const cacheKey = getSearchCacheKey(type, q);
-    const cached = searchCacheRef.current.get(cacheKey);
-    const now = Date.now();
-    const TTL = 5 * 60 * 1000; // 5 minutes
+  const cleanupExpiredSearchCache = useCallback((): void => {
+    try {
+      const now = Date.now();
+      const keysToRemove: string[] = [];
 
-    if (cached && now - cached.timestamp < TTL) {
-      console.log(`Cache hit for search: ${cacheKey}`);
-      return cached.data;
-    }
-
-    console.log(`Cache miss for search: ${cacheKey}`);
-    const response = await searchWorkplaces(type, q);
-
-    // Store in cache
-    searchCacheRef.current.set(cacheKey, {
-      data: response,
-      timestamp: now,
-    });
-
-    // Clean up old entries to prevent memory leaks
-    for (const [key, entry] of searchCacheRef.current.entries()) {
-      if (now - entry.timestamp > TTL) {
-        searchCacheRef.current.delete(key);
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith(`${CACHE_PREFIX}search:`)) {
+          try {
+            const cached = localStorage.getItem(key);
+            if (cached) {
+              const entry = JSON.parse(cached) as { data: SearchResponse; timestamp: number };
+              if (now - entry.timestamp > SEARCH_TTL) {
+                keysToRemove.push(key);
+              }
+            }
+          } catch (err) {
+            keysToRemove.push(key);
+          }
+        }
       }
-    }
 
-    return response;
+      keysToRemove.forEach((key) => {
+        localStorage.removeItem(key);
+        console.log(`Cleaned up expired cache: ${key}`);
+      });
+    } catch (err) {
+      console.error('Error during search cache cleanup', err);
+    }
   }, []);
+
+  const getCachedSearchResults = useCallback((cacheKey: string): SearchResponse | null => {
+    try {
+      const cached = localStorage.getItem(cacheKey);
+      if (!cached) {
+        console.log(`Cache miss for key: ${cacheKey}`);
+        return null;
+      }
+
+      const entry = JSON.parse(cached) as { data: SearchResponse; timestamp: number };
+      const now = Date.now();
+      const age = now - entry.timestamp;
+
+      if (age > SEARCH_TTL) {
+        console.log(`Cache expired for key: ${cacheKey} (age: ${age}ms, ttl: ${SEARCH_TTL}ms)`);
+        localStorage.removeItem(cacheKey);
+        return null;
+      }
+
+      console.log(`Cache hit for key: ${cacheKey} (age: ${age}ms)`);
+      return entry.data;
+    } catch (err) {
+      console.error(`Error reading search cache for key: ${cacheKey}`, err);
+      return null;
+    }
+  }, []);
+
+  const setCachedSearchResults = useCallback((cacheKey: string, value: SearchResponse): void => {
+    try {
+      const serialized = JSON.stringify({ data: value, timestamp: Date.now() });
+      localStorage.setItem(cacheKey, serialized);
+    } catch (err) {
+      console.error(`Error saving search cache for key: ${cacheKey}`, err);
+    }
+  }, []);
+
+  useEffect(() => {
+    cleanupExpiredSearchCache();
+  }, [cleanupExpiredSearchCache]);
 
   const handleSearch = async () => {
     if (!query.trim()) {
@@ -76,16 +115,41 @@ export const SearchBar: React.FC<SearchBarProps> = ({ onResults, onLoading }) =>
       return;
     }
 
+    const trimmedQuery = query.trim();
+    const cacheKey = `${CACHE_PREFIX}${getSearchCacheKey(searchType, trimmedQuery)}`;
+    cleanupExpiredSearchCache();
+    const cachedResponse = getCachedSearchResults(cacheKey);
+
+    if (cachedResponse) {
+      if (cachedResponse.success) {
+        onResults(cachedResponse.results);
+        if (cachedResponse.results.length === 0) {
+          toaster.create({
+            title: 'Результаты поиска',
+            description: 'Ничего не найдено',
+            type: 'info',
+          });
+        }
+      } else {
+        toaster.create({
+          title: 'Ошибка поиска',
+          description: cachedResponse.error || 'Неизвестная ошибка',
+          type: 'error',
+          duration: 5000,
+        });
+      }
+      return;
+    }
+
     setIsSearching(true);
     onLoading(true);
-    const cacheKey = getSearchCacheKey(searchType, query);
-    setLastSearchKey(cacheKey);
 
     try {
-      const response = await getSearchResults(searchType, query.trim());
+      const response = await searchWorkplaces(searchType, trimmedQuery);
 
       if (response.success) {
         onResults(response.results);
+        setCachedSearchResults(cacheKey, response);
         if (response.results.length === 0) {
           toaster.create({
             title: 'Результаты поиска',
