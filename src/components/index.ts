@@ -5,4 +5,6 @@ export { CoworkingView } from './CoworkingView';
 export { ProtectedRoute } from './ProtectedRoute';
 export { ResultCard } from './ResultCard';
 export { SearchBar } from './SearchBar';
+export { StatCard } from './StatCard';
+export { StatsView } from './StatsView';
 export { TableView } from './TableView';

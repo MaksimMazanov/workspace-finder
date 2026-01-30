@@ -637,6 +637,123 @@ router.get('/coworkings', async (req, res) => {
   }
 });
 
+// Общая статистика по рабочим местам
+router.get('/stats', async (req, res) => {
+  try {
+    if (mongoConnected && collection) {
+      const totalPlaces = await collection.countDocuments();
+      const occupiedPlaces = await collection.countDocuments({ status: 'occupied' });
+      const freePlaces = totalPlaces - occupiedPlaces;
+
+      const blockStatsResult = await collection.aggregate([
+        {
+          $group: {
+            _id: '$blockCode',
+            total: { $sum: 1 },
+            occupied: {
+              $sum: { $cond: [{ $eq: ['$status', 'occupied'] }, 1, 0] }
+            }
+          }
+        }
+      ]).toArray();
+
+      const blockStats = {};
+      blockStatsResult.forEach((block) => {
+        blockStats[block._id] = {
+          total: block.total,
+          occupied: block.occupied,
+          free: block.total - block.occupied
+        };
+      });
+
+      const typeStatsResult = await collection.aggregate([
+        {
+          $group: {
+            _id: '$type',
+            total: { $sum: 1 },
+            occupied: {
+              $sum: { $cond: [{ $eq: ['$status', 'occupied'] }, 1, 0] }
+            }
+          }
+        }
+      ]).toArray();
+
+      const typeStats = {};
+      typeStatsResult.forEach((type) => {
+        typeStats[type._id] = {
+          total: type.total,
+          occupied: type.occupied
+        };
+      });
+
+      const coworkingPlaces = await collection.countDocuments({ type: 'Coworking' });
+      const occupiedCoworking = await collection.countDocuments({
+        type: 'Coworking',
+        status: 'occupied'
+      });
+
+      return res.json({
+        success: true,
+        totalPlaces,
+        occupiedPlaces,
+        freePlaces,
+        coworkingPlaces,
+        occupiedCoworking,
+        blockStats,
+        typeStats
+      });
+    }
+
+    const totalPlaces = fallbackWorkplaces.length;
+    const occupiedPlaces = fallbackWorkplaces.filter((doc) => doc.status === 'occupied').length;
+    const freePlaces = totalPlaces - occupiedPlaces;
+    const coworkingPlaces = fallbackWorkplaces.filter((doc) => doc.type === 'Coworking').length;
+    const occupiedCoworking = fallbackWorkplaces.filter((doc) => (
+      doc.type === 'Coworking' && doc.status === 'occupied'
+    )).length;
+
+    const blockStats = {};
+    fallbackWorkplaces.forEach((doc) => {
+      if (!blockStats[doc.blockCode]) {
+        blockStats[doc.blockCode] = { total: 0, occupied: 0, free: 0 };
+      }
+      blockStats[doc.blockCode].total += 1;
+      if (doc.status === 'occupied') {
+        blockStats[doc.blockCode].occupied += 1;
+      }
+      blockStats[doc.blockCode].free = blockStats[doc.blockCode].total - blockStats[doc.blockCode].occupied;
+    });
+
+    const typeStats = {};
+    fallbackWorkplaces.forEach((doc) => {
+      if (!typeStats[doc.type]) {
+        typeStats[doc.type] = { total: 0, occupied: 0 };
+      }
+      typeStats[doc.type].total += 1;
+      if (doc.status === 'occupied') {
+        typeStats[doc.type].occupied += 1;
+      }
+    });
+
+    return res.json({
+      success: true,
+      totalPlaces,
+      occupiedPlaces,
+      freePlaces,
+      coworkingPlaces,
+      occupiedCoworking,
+      blockStats,
+      typeStats
+    });
+  } catch (error) {
+    console.error('Stats error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to fetch stats'
+    });
+  }
+});
+
 // Authentication endpoints
 
 // Test user credentials (for development)
