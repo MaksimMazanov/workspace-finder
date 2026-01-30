@@ -144,6 +144,15 @@ export const LoginPage = () => {
                 Зарегистрироваться
               </Text>
             </Text>
+            <Button
+              variant="outline"
+              colorScheme="blue"
+              size="sm"
+              mt={4}
+              onClick={() => navigate('/admin/login')}
+            >
+              Войти администратором
+            </Button>
           </Box>
         </Card.Body>
       </Card.Root>
