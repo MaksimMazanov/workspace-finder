@@ -118,6 +118,33 @@ export interface AuthResponse {
   error?: string;
 }
 
+export interface UploadResponse {
+  success: boolean;
+  total?: number;
+  inserted?: number;
+  updated?: number;
+  errors?: Array<{ row: number; error: string }>;
+  error?: string;
+}
+
+export interface ImportLog {
+  id: string;
+  fileName: string;
+  userName: string;
+  timestamp: string;
+  totalRows: number;
+  inserted: number;
+  updated: number;
+  errors: number;
+  status: 'success' | 'partial' | 'failed';
+}
+
+export interface ImportsResponse {
+  success: boolean;
+  imports: ImportLog[];
+  error?: string;
+}
+
 // Базовый URL API
 
 // Поиск по ФИО или номеру места
@@ -260,4 +287,29 @@ export async function getCurrentUser(): Promise<AuthResponse> {
   } catch (error) {
     return { success: false, error: 'Failed to get user info' };
   }
+}
+
+export async function uploadWorkplacesFile(
+  file: File,
+  userName: string
+): Promise<UploadResponse> {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('userName', userName);
+
+  const response = await fetch(`${URLs.apiBase}/admin/upload`, {
+    method: 'POST',
+    body: formData,
+    credentials: 'include'
+  });
+
+  return await response.json();
+}
+
+export async function getImportHistory(): Promise<ImportsResponse> {
+  const response = await fetch(`${URLs.apiBase}/admin/imports`, {
+    credentials: 'include'
+  });
+
+  return await response.json();
 }
