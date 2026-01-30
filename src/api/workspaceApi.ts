@@ -59,6 +59,29 @@ export interface CoworkingsResponse {
   error?: string;
 }
 
+export interface ZonePlace {
+  id: string;
+  placeNumber: string;
+  employeeName: string;
+  department: string;
+  status: string;
+}
+
+export interface Zone {
+  name: string;
+  type: string;
+  totalPlaces: number;
+  occupiedPlaces: number;
+  blockCodes: string[];
+  places: ZonePlace[];
+}
+
+export interface ZonesResponse {
+  success: boolean;
+  zones: Zone[];
+  error?: string;
+}
+
 export interface BlockStat {
   total: number;
   occupied: number;
@@ -129,6 +152,17 @@ export async function getWorkplaces(): Promise<WorkplacesResponse> {
 // Получить список коворкингов
 export async function getCoworkings(): Promise<CoworkingsResponse> {
   const response = await fetch(`${URLs.apiBase}/coworkings`);
+
+  if (!response.ok) {
+    throw new Error(`API Error: ${response.status}`);
+  }
+
+  return await response.json();
+}
+
+// Получить список зон
+export async function getZones(): Promise<ZonesResponse> {
+  const response = await fetch(`${URLs.apiBase}/zones`);
 
   if (!response.ok) {
     throw new Error(`API Error: ${response.status}`);

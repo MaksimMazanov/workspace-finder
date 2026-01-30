@@ -16,6 +16,7 @@ import { SearchBar } from '../../components/SearchBar';
 import { ResultCard } from '../../components/ResultCard';
 import { TableView } from '../../components/TableView';
 import { CoworkingView } from '../../components/CoworkingView';
+import { MapView } from '../../components/MapView';
 import { StatsView } from '../../components/StatsView';
 import { ViewSwitcher, ViewMode } from '../../components/ViewSwitcher';
 import { Workplace } from '../../api/workspaceApi';
@@ -131,7 +132,7 @@ export const MainPage = () => {
           {activeView === 'table' && <TableView />}
           {activeView === 'coworking' && <CoworkingView />}
           {activeView === 'stats' && <StatsView />}
-          {activeView === 'map' && <Text>MapView - TODO TASK-08</Text>}
+          {activeView === 'map' && <MapView />}
         </VStack>
       </Container>
 
