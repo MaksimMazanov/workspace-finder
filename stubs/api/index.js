@@ -336,6 +336,7 @@ const fallbackWorkplaces = testData.map((doc, idx) => ({
   _id: { toString: () => String(idx + 1) },
   ...doc
 }));
+const fallbackImportLogs = [];
 
 // Connect to MongoDB
 async function connectToDatabase() {
@@ -356,7 +357,7 @@ async function connectToDatabase() {
     db = client.db(DB_NAME);
     collection = db.collection(COLLECTION_NAME);
     auditLog = db.collection('audit_log');
-    importLog = db.collection('import_log');
+    importLog = db.collection('import_logs');
     mongoConnected = true;
     
     // Create indexes for performance
@@ -953,10 +954,17 @@ async function logAuditEvent(eventType, details = {}) {
 // Helper function to log import event
 async function logImportEvent(importDetails) {
   try {
+    const logEntry = {
+      timestamp: new Date(),
+      ...importDetails
+    };
+
     if (importLog) {
-      await importLog.insertOne({
-        timestamp: new Date(),
-        ...importDetails
+      await importLog.insertOne(logEntry);
+    } else {
+      fallbackImportLogs.push({
+        _id: { toString: () => String(fallbackImportLogs.length + 1) },
+        ...logEntry
       });
     }
   } catch (error) {
@@ -1087,28 +1095,195 @@ router.post('/auth/register', (req, res) => {
 
 // POST /api/admin/upload - Upload XLS file (admin only)
 router.post('/admin/upload', requireAdmin, async (req, res) => {
+  const multer = require('multer');
+  const xlsx = require('xlsx');
+  const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 10 * 1024 * 1024 },
+    fileFilter: (req, file, cb) => {
+      const allowedTypes = [
+        'application/vnd.ms-excel',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      ];
+
+      if (allowedTypes.includes(file.mimetype)) {
+        cb(null, true);
+      } else {
+        cb(new Error('Only XLS/XLSX files are allowed'));
+      }
+    }
+  });
+
+  upload.single('file')(req, res, async (uploadError) => {
+    if (uploadError) {
+      return res.status(400).json({
+        success: false,
+        error: uploadError.message || 'Failed to upload file'
+      });
+    }
+
+    try {
+      if (!req.file) {
+        return res.status(400).json({
+          success: false,
+          error: 'No file uploaded'
+        });
+      }
+
+      const workbook = xlsx.read(req.file.buffer, { type: 'buffer' });
+      const sheetName = workbook.SheetNames[0];
+      const sheet = workbook.Sheets[sheetName];
+
+      if (!sheet) {
+        return res.status(400).json({
+          success: false,
+          error: 'No sheet data found in file'
+        });
+      }
+
+      const data = xlsx.utils.sheet_to_json(sheet, { defval: '' });
+      const errors = [];
+      let inserted = 0;
+      let updated = 0;
+
+      const coll = getCollection();
+
+      for (let i = 0; i < data.length; i++) {
+        const row = data[i];
+
+        if (!row.placeNumber || !row.blockCode || !row.status) {
+          errors.push({
+            row: i + 2,
+            error: 'Missing required fields: placeNumber, blockCode, or status'
+          });
+          continue;
+        }
+
+        const workplaceData = {
+          placeNumber: row.placeNumber,
+          placeName: row.placeName || row.placeNumber,
+          zone: row.zone || '',
+          blockCode: row.blockCode,
+          type: row.type || 'Openspace',
+          category: row.category || 'Основное',
+          employeeName: row.employeeName || '',
+          tabNumber: row.tabNumber || '',
+          department: row.department || '',
+          team: row.team || '',
+          position: row.position || '',
+          status: row.status,
+          coworkingType: row.coworkingType || '',
+          updatedAt: new Date()
+        };
+
+        if (mongoConnected && coll?.updateOne) {
+          const result = await coll.updateOne(
+            { placeNumber: row.placeNumber },
+            {
+              $set: workplaceData,
+              $setOnInsert: {
+                createdAt: new Date()
+              }
+            },
+            { upsert: true }
+          );
+
+          if (result.upsertedCount > 0) {
+            inserted++;
+          } else if (result.modifiedCount > 0) {
+            updated++;
+          }
+        } else {
+          const existingIndex = fallbackWorkplaces.findIndex(
+            (item) => item.placeNumber === row.placeNumber
+          );
+
+          if (existingIndex >= 0) {
+            fallbackWorkplaces[existingIndex] = {
+              ...fallbackWorkplaces[existingIndex],
+              ...workplaceData
+            };
+            updated++;
+          } else {
+            fallbackWorkplaces.push({
+              _id: { toString: () => String(fallbackWorkplaces.length + 1) },
+              ...workplaceData,
+              createdAt: new Date()
+            });
+            inserted++;
+          }
+        }
+      }
+
+      const userName = req.body?.userName || 'Unknown';
+      const importEntry = {
+        fileName: req.file.originalname,
+        userName,
+        totalRows: data.length,
+        inserted,
+        updated,
+        errors: errors.length,
+        status: errors.length > 0 ? 'partial' : 'success'
+      };
+
+      await logImportEvent({
+        adminUser: req.adminUser?.role,
+        ...importEntry
+      });
+
+      res.json({
+        success: true,
+        total: data.length,
+        inserted,
+        updated,
+        errors
+      });
+    } catch (error) {
+      console.error('Admin upload error:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message || 'Failed to process file'
+      });
+    }
+  });
+});
+
+// GET /api/admin/imports - Import history (admin only)
+router.get('/admin/imports', requireAdmin, async (req, res) => {
   try {
-    // For now, just log the upload and return success
-    // In production, would parse XLS file here
-    const fileName = req.body?.fileName || 'unknown';
-    
-    await logImportEvent({
-      adminUser: req.adminUser?.role,
-      fileName,
-      status: 'success',
-      rowsProcessed: 0,
-      errors: []
-    });
+    let imports = [];
+
+    if (mongoConnected && importLog) {
+      imports = await importLog
+        .find()
+        .sort({ timestamp: -1 })
+        .limit(20)
+        .toArray();
+    } else {
+      imports = [...fallbackImportLogs]
+        .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+        .slice(0, 20);
+    }
 
     res.json({
       success: true,
-      message: 'File uploaded successfully'
+      imports: imports.map((imp) => ({
+        id: typeof imp._id === 'string' ? imp._id : imp._id?.toString?.() || '',
+        fileName: imp.fileName,
+        userName: imp.userName,
+        timestamp: imp.timestamp,
+        totalRows: imp.totalRows,
+        inserted: imp.inserted,
+        updated: imp.updated,
+        errors: imp.errors,
+        status: imp.status
+      }))
     });
   } catch (error) {
-    console.error('Admin upload error:', error);
+    console.error('Error fetching imports:', error);
     res.status(500).json({
       success: false,
-      error: 'Internal server error'
+      error: 'Failed to fetch imports'
     });
   }
 });
