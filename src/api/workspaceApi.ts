@@ -59,6 +59,29 @@ export interface CoworkingsResponse {
   error?: string;
 }
 
+export interface BlockStat {
+  total: number;
+  occupied: number;
+  free: number;
+}
+
+export interface TypeStat {
+  total: number;
+  occupied: number;
+}
+
+export interface StatsResponse {
+  success: boolean;
+  totalPlaces: number;
+  occupiedPlaces: number;
+  freePlaces: number;
+  coworkingPlaces: number;
+  occupiedCoworking: number;
+  blockStats: Record<string, BlockStat>;
+  typeStats: Record<string, TypeStat>;
+  error?: string;
+}
+
 // Authentication types
 export interface User {
   id: string;
@@ -106,6 +129,17 @@ export async function getWorkplaces(): Promise<WorkplacesResponse> {
 // Получить список коворкингов
 export async function getCoworkings(): Promise<CoworkingsResponse> {
   const response = await fetch(`${URLs.apiBase}/coworkings`);
+
+  if (!response.ok) {
+    throw new Error(`API Error: ${response.status}`);
+  }
+
+  return await response.json();
+}
+
+// Получить статистику по рабочим местам
+export async function getStats(): Promise<StatsResponse> {
+  const response = await fetch(`${URLs.apiBase}/stats`);
 
   if (!response.ok) {
     throw new Error(`API Error: ${response.status}`);
