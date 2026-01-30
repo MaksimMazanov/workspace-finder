@@ -637,6 +637,104 @@ router.get('/coworkings', async (req, res) => {
   }
 });
 
+// Получить список зон
+router.get('/zones', async (req, res) => {
+  try {
+    if (mongoConnected && collection) {
+      const zonesResult = await collection.aggregate([
+        {
+          $group: {
+            _id: '$zone',
+            totalPlaces: { $sum: 1 },
+            occupiedPlaces: {
+              $sum: { $cond: [{ $eq: ['$status', 'occupied'] }, 1, 0] }
+            },
+            blockCodes: { $addToSet: '$blockCode' },
+            type: { $first: '$type' },
+            places: { $push: '$$ROOT' }
+          }
+        },
+        { $sort: { _id: 1 } }
+      ]).toArray();
+
+      const zones = zonesResult.map((zone) => {
+        const sortedPlaces = zone.places
+          .sort((a, b) => (a.placeNumber || '').localeCompare(b.placeNumber || ''))
+          .map((place) => ({
+            id: place._id?.toString?.() || place.id || place.placeNumber,
+            placeNumber: place.placeNumber,
+            employeeName: place.employeeName || '',
+            department: place.department || '',
+            status: place.status
+          }));
+
+        return {
+          name: zone._id || 'Без зоны',
+          type: (zone.type || 'openspace').toString().toLowerCase(),
+          totalPlaces: zone.totalPlaces,
+          occupiedPlaces: zone.occupiedPlaces,
+          blockCodes: (zone.blockCodes || []).sort(),
+          places: sortedPlaces
+        };
+      });
+
+      return res.json({
+        success: true,
+        zones
+      });
+    }
+
+    const zonesMap = new Map();
+
+    fallbackWorkplaces.forEach((place) => {
+      const zoneName = place.zone || 'Без зоны';
+      if (!zonesMap.has(zoneName)) {
+        zonesMap.set(zoneName, {
+          name: zoneName,
+          type: (place.type || 'openspace').toString().toLowerCase(),
+          totalPlaces: 0,
+          occupiedPlaces: 0,
+          blockCodes: new Set(),
+          places: []
+        });
+      }
+
+      const zone = zonesMap.get(zoneName);
+      zone.totalPlaces += 1;
+      if (place.status === 'occupied') {
+        zone.occupiedPlaces += 1;
+      }
+      zone.blockCodes.add(place.blockCode);
+      zone.places.push({
+        id: place._id?.toString?.() || place.id || place.placeNumber,
+        placeNumber: place.placeNumber,
+        employeeName: place.employeeName || '',
+        department: place.department || '',
+        status: place.status
+      });
+    });
+
+    const zones = Array.from(zonesMap.values())
+      .map((zone) => ({
+        ...zone,
+        blockCodes: Array.from(zone.blockCodes).sort(),
+        places: zone.places.sort((a, b) => (a.placeNumber || '').localeCompare(b.placeNumber || ''))
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+
+    return res.json({
+      success: true,
+      zones
+    });
+  } catch (error) {
+    console.error('Zones error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to fetch zones'
+    });
+  }
+});
+
 // Общая статистика по рабочим местам
 router.get('/stats', async (req, res) => {
   try {
