@@ -7,9 +7,13 @@ import {
   Text,
   VStack,
   HStack,
-  Badge,
 } from '@chakra-ui/react';
 import { Workplace } from '../api/workspaceApi';
+import {
+  getEmployeeLabelStyle,
+  normalizeDepartmentLabel,
+  normalizeEmployeeLabel
+} from '../utils/formatters';
 
 interface BlockTableProps {
   blockCode: string;
@@ -27,31 +31,9 @@ export const BlockTable: React.FC<BlockTableProps> = ({
   const bgColor = 'gray.50';
   const borderColor = 'gray.200';
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'occupied':
-        return 'red';
-      case 'free':
-        return 'green';
-      case 'reserved':
-        return 'yellow';
-      default:
-        return 'gray';
-    }
-  };
-
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'occupied':
-        return 'Занято';
-      case 'free':
-        return 'Свободно';
-      case 'reserved':
-        return 'Зарезервировано';
-      default:
-        return 'Неизвестно';
-    }
-  };
+  const sortedPlaces = [...places].sort((a, b) =>
+    a.placeNumber.localeCompare(b.placeNumber, 'ru', { numeric: true })
+  );
 
   return (
     <Card.Root size="sm" bg={bgColor} shadow="sm" borderRadius="md">
@@ -82,29 +64,25 @@ export const BlockTable: React.FC<BlockTableProps> = ({
                 <Table.ColumnHeader borderColor={borderColor}>Место</Table.ColumnHeader>
                 <Table.ColumnHeader borderColor={borderColor}>Сотрудник</Table.ColumnHeader>
                 <Table.ColumnHeader borderColor={borderColor}>Отдел</Table.ColumnHeader>
-                <Table.ColumnHeader borderColor={borderColor}>Статус</Table.ColumnHeader>
               </Table.Row>
             </Table.Header>
             <Table.Body>
-              {places.map((place) => (
+              {sortedPlaces.map((place) => (
                 <Table.Row key={place.id}>
                   <Table.Cell borderColor={borderColor} fontWeight="semibold">
                     {place.placeNumber}
                   </Table.Cell>
                   <Table.Cell borderColor={borderColor}>
-                    {place.employeeName || '-'}
+                    {place.employeeName ? (
+                      <Text fontSize="sm" {...getEmployeeLabelStyle(place.employeeName)}>
+                        {normalizeEmployeeLabel(place.employeeName)}
+                      </Text>
+                    ) : (
+                      '-'
+                    )}
                   </Table.Cell>
                   <Table.Cell borderColor={borderColor}>
-                    {place.department || '-'}
-                  </Table.Cell>
-                  <Table.Cell borderColor={borderColor}>
-                    <Badge
-                      colorScheme={getStatusColor(place.status)}
-                      variant="subtle"
-                      fontSize="xs"
-                    >
-                      {getStatusText(place.status)}
-                    </Badge>
+                    {place.department ? normalizeDepartmentLabel(place.department) : '-'}
                   </Table.Cell>
                 </Table.Row>
               ))}

@@ -74,7 +74,7 @@ export const AdminPage = () => {
       });
 
       setTimeout(() => {
-        navigate('/workspace-finder');
+        navigate('/login');
       }, 500);
     } catch (error) {
       console.error('Logout error:', error);
@@ -188,28 +188,43 @@ export const AdminPage = () => {
                   bg={isDragActive ? 'blue.50' : 'gray.50'}
                   cursor="pointer"
                   _hover={{ borderColor: 'blue.500', bg: 'blue.50' }}
-                  onClick={() => fileInputRef.current?.click()}
                   onDragOver={(event) => {
                     event.preventDefault();
                     setIsDragActive(true);
                   }}
                   onDragLeave={() => setIsDragActive(false)}
                   onDrop={handleDrop}
+                  position="relative"
+                  overflow="hidden"
                 >
                   <input
                     ref={fileInputRef}
                     type="file"
                     accept=".xls,.xlsx"
                     onChange={handleInputChange}
-                    style={{ display: 'none' }}
+                    position="absolute"
+                    inset={0}
+                    opacity={0}
+                    cursor="pointer"
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      opacity: 0,
+                      cursor: 'pointer',
+                      width: '100%',
+                      height: '100%',
+                    }}
                   />
-                  <Text fontSize="lg" color="gray.600">
+                  <Text fontSize="lg" color="gray.600" pointerEvents="none">
                     {selectedFile
                       ? `Выбран файл: ${selectedFile.name}`
                       : '📄 Перетащите XLS файл сюда или нажмите для выбора'}
                   </Text>
                   {selectedFile && (
-                    <Text fontSize="sm" color="gray.500" mt={2}>
+                    <Text fontSize="sm" color="gray.500" mt={2} pointerEvents="none">
                       Размер: {(selectedFile.size / 1024).toFixed(2)} KB
                     </Text>
                   )}
@@ -223,14 +238,52 @@ export const AdminPage = () => {
                   </Progress.Root>
                 )}
 
-                <Button
-                  colorScheme="blue"
-                  size="lg"
-                  onClick={handleUpload}
-                  disabled={!selectedFile || uploading}
-                >
-                  {uploading ? <Spinner size="sm" /> : 'Загрузить'}
-                </Button>
+                <HStack gap={2} width="100%">
+                  <Button
+                    colorScheme="blue"
+                    size="lg"
+                    onClick={handleUpload}
+                    disabled={!selectedFile || uploading}
+                    flex={1}
+                  >
+                    {uploading ? <Spinner size="sm" /> : 'Загрузить'}
+                  </Button>
+                  {!selectedFile && (
+                    <Button
+                      colorScheme="gray"
+                      variant="outline"
+                      size="lg"
+                      onClick={async () => {
+                        try {
+                          setUploading(true);
+                          const response = await fetch('/api/test/upload-real-file', {
+                            method: 'GET',
+                            credentials: 'include'
+                          });
+                          const result = await response.json();
+                          if (result.success) {
+                            toaster.create({
+                              title: 'Тестовый файл загружен!',
+                              description: `Добавлено: ${result.inserted}, Обновлено: ${result.updated}`,
+                              type: 'success'
+                            });
+                            await loadImportHistory();
+                          }
+                        } catch (error) {
+                          toaster.create({
+                            title: 'Ошибка',
+                            description: 'Не удалось загрузить тестовый файл',
+                            type: 'error'
+                          });
+                        } finally {
+                          setUploading(false);
+                        }
+                      }}
+                    >
+                      Загрузить тест
+                    </Button>
+                  )}
+                </HStack>
               </VStack>
             </Card.Body>
           </Card.Root>

@@ -253,7 +253,7 @@ export async function loginUser(email: string, password: string): Promise<AuthRe
     console.error('Login exception:', error);
     return {
       success: false,
-      error: `Failed to connect to server: ${error instanceof Error ? error.message : String(error)}`
+      error: `Не удалось подключиться к серверу: ${error instanceof Error ? error.message : String(error)}`
     };
   }
 }
@@ -285,7 +285,7 @@ export async function getCurrentUser(): Promise<AuthResponse> {
     const data = await response.json();
     return { success: true, user: data };
   } catch (error) {
-    return { success: false, error: 'Failed to get user info' };
+    return { success: false, error: 'Не удалось получить данные пользователя' };
   }
 }
 

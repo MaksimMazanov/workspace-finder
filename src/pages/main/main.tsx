@@ -48,41 +48,41 @@ export const MainPage = () => {
   };
 
   return (
-    <Box minH="100vh" bg={bgColor} pb={{ base: '70px', md: 0 }}>
-      {/* Header with logout button */}
-      <Box bg="white" boxShadow="sm" py={4}>
-        <Container maxW="container.xl">
-          <HStack justify="space-between" align="center">
-            <Heading size="lg" color="blue.600">
-              WorkspaceFinder
-            </Heading>
-            <Button
-              colorScheme="red"
-              variant="outline"
-              size="sm"
-              onClick={handleLogout}
-            >
-              Выход
-            </Button>
-          </HStack>
-        </Container>
-      </Box>
-
-      <Container maxW="container.xl" py={8}>
+    <Box minH="100vh" bg={bgColor} pb={{ base: '70px', md: 0 }} position="relative">
+      <Box
+        position="absolute"
+        inset={0}
+        bgGradient="linear(to-br, #f2f7f5, #eef4f8, #f6f7fb)"
+        _after={{
+          content: '""',
+          position: 'absolute',
+          inset: 0,
+          bgImage:
+            'radial-gradient(circle at 15% 15%, rgba(24,156,88,0.12) 0%, transparent 45%), radial-gradient(circle at 80% 20%, rgba(36,107,194,0.12) 0%, transparent 40%), radial-gradient(circle at 70% 80%, rgba(24,156,88,0.10) 0%, transparent 50%)'
+        }}
+      />
+      <Container maxW="6xl" py={8} position="relative">
         <VStack spacing={8} align="stretch">
           <Box display={{ base: 'none', md: 'block' }}>
             <ViewSwitcher activeView={activeView} onViewChange={handleViewChange} />
           </Box>
           {/* Заголовок */}
-          <Box textAlign="center">
-            <Heading
-              size="xl"
-              color="blue.600"
-              mb={2}
-            >
-              WorkspaceFinder
+          <Box position="relative">
+            <Heading size="xl" color="gray.900" textAlign="center" mb={2}>
+              Рабочее пространство
             </Heading>
-            <Text fontSize="lg" color="gray.600">
+            <Button
+              colorScheme="green"
+              variant="outline"
+              size="sm"
+              onClick={handleLogout}
+              position="absolute"
+              right={0}
+              top={0}
+            >
+              Выход
+            </Button>
+            <Text fontSize="md" color="gray.600">
               Найдите рабочее место по ФИО сотрудника или номеру места
             </Text>
           </Box>

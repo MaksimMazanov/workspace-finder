@@ -8,42 +8,20 @@ import {
   Text,
   VStack,
   HStack,
-  Badge,
   Separator,
 } from '@chakra-ui/react';
 import { Workplace } from '../api/workspaceApi';
+import {
+  getEmployeeLabelStyle,
+  normalizeDepartmentLabel,
+  normalizeEmployeeLabel
+} from '../utils/formatters';
 
 interface ResultCardProps {
   workplace: Workplace;
 }
 
 export const ResultCard: React.FC<ResultCardProps> = ({ workplace }) => {
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'occupied':
-        return 'red';
-      case 'free':
-        return 'green';
-      case 'reserved':
-        return 'yellow';
-      default:
-        return 'gray';
-    }
-  };
-
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'occupied':
-        return 'Занято';
-      case 'free':
-        return 'Свободно';
-      case 'reserved':
-        return 'Зарезервировано';
-      default:
-        return 'Неизвестно';
-    }
-  };
-
   return (
     <Card.Root
       size="md"
@@ -66,15 +44,6 @@ export const ResultCard: React.FC<ResultCardProps> = ({ workplace }) => {
               {workplace.zone}
             </Text>
           </VStack>
-          <Badge
-            colorScheme={getStatusColor(workplace.status)}
-            variant="solid"
-            fontSize="xs"
-            px={2}
-            py={1}
-          >
-            {getStatusText(workplace.status)}
-          </Badge>
         </HStack>
       </Card.Header>
 
@@ -84,8 +53,8 @@ export const ResultCard: React.FC<ResultCardProps> = ({ workplace }) => {
           {workplace.employeeName && (
             <>
               <VStack align="start" spacing={0}>
-                <Text fontWeight="semibold" fontSize="md">
-                  👤 {workplace.employeeName}
+                <Text fontWeight="semibold" fontSize="md" {...getEmployeeLabelStyle(workplace.employeeName)}>
+                  👤 {normalizeEmployeeLabel(workplace.employeeName)}
                 </Text>
                 {workplace.position && (
                   <Text fontSize="sm" color="gray.600">
@@ -108,11 +77,11 @@ export const ResultCard: React.FC<ResultCardProps> = ({ workplace }) => {
           </VStack>
 
           {/* Информация об отделе */}
-          {workplace.department && (
-            <VStack align="start" spacing={0}>
-              <Text fontSize="sm">
-                🏛️ <strong>Отдел:</strong> {workplace.department}
-              </Text>
+              {workplace.department && (
+                <VStack align="start" spacing={0}>
+                  <Text fontSize="sm">
+                    🏛️ <strong>Отдел:</strong> {normalizeDepartmentLabel(workplace.department)}
+                  </Text>
               {workplace.team && (
                 <Text fontSize="sm">
                   👥 <strong>Команда:</strong> {workplace.team}
@@ -121,12 +90,6 @@ export const ResultCard: React.FC<ResultCardProps> = ({ workplace }) => {
             </VStack>
           )}
 
-          {/* Рабочая иконка если свободно */}
-          {workplace.status === 'free' && (
-            <Text fontSize="sm" color="green.600" fontWeight="semibold">
-              ✅ Место доступно для работы
-            </Text>
-          )}
         </VStack>
       </Card.Body>
     </Card.Root>

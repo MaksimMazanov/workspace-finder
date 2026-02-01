@@ -9,7 +9,10 @@ import {
   Text,
   createToaster,
   Center,
-  Card
+  Card,
+  HStack,
+  SimpleGrid,
+  Container,
 } from '@chakra-ui/react';
 import { loginUser } from '../../api/workspaceApi';
 
@@ -70,92 +73,109 @@ export const LoginPage = () => {
   };
 
   return (
-    <Center minH="100vh" bg="gray.50">
-      <Card.Root maxW="md" w="full" shadow="lg">
-        <Card.Body>
-          <VStack spacing={6} align="stretch">
-            <Box textAlign="center">
-              <Heading size="xl" color="blue.600" mb={2}>
-                Добро пожаловать
-              </Heading>
-              <Text color="gray.600">
-                Введите ваш email и пароль для входа
-              </Text>
-              <Text fontSize="xs" color="gray.500" mt={4}>
-                Тестовые учетные данные:
-                <br />
-                user@example.com / password123
-              </Text>
-            </Box>
+    <Center minH="100vh" bg="gray.50" position="relative">
+      <Box
+        position="absolute"
+        inset={0}
+        bgGradient="linear(to-br, #f2f7f5, #eef4f8, #f6f7fb)"
+        _after={{
+          content: '""',
+          position: 'absolute',
+          inset: 0,
+          bgImage:
+            'radial-gradient(circle at 15% 15%, rgba(24,156,88,0.12) 0%, transparent 45%), radial-gradient(circle at 80% 20%, rgba(36,107,194,0.12) 0%, transparent 40%), radial-gradient(circle at 70% 80%, rgba(24,156,88,0.10) 0%, transparent 50%)'
+        }}
+      />
+      <Container maxW="6xl" position="relative" py={{ base: 8, lg: 16 }}>
+        <SimpleGrid columns={1} gap={8} alignItems="stretch">
+          <Card.Root bg="white" shadow="lg" borderRadius="2xl">
+            <Card.Body p={{ base: 6, md: 8 }}>
+              <VStack spacing={6} align="stretch">
+                <Box>
+                  <Text fontSize="lg" fontWeight="semibold" color="gray.700" mb={2}>
+                    Вход в рабочее пространство
+                  </Text>
+                </Box>
 
-            <VStack spacing={4} align="stretch">
-              <Box>
-                <Text fontWeight="medium" mb={2}>
-                  Email
-                </Text>
-                <Input
-                  placeholder="user@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  size="lg"
-                  type="email"
-                />
-              </Box>
+                
 
-              <Box>
-                <Text fontWeight="medium" mb={2}>
-                  Пароль
-                </Text>
-                <Input
-                  placeholder="Введите пароль..."
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  size="lg"
-                  type="password"
-                />
-              </Box>
+                <VStack spacing={4} align="stretch">
+                  <Box>
+                    <Text fontWeight="medium" mb={2}>
+                      Логин
+                    </Text>
+                    <Input
+                      placeholder="user@example.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      onKeyPress={handleKeyPress}
+                      size="lg"
+                      type="email"
+                      bg="gray.50"
+                      borderColor="gray.200"
+                    />
+                  </Box>
 
-              <Button
-                colorScheme="blue"
-                size="lg"
-                onClick={handleLogin}
-                w="full"
-                loading={isLoading}
-                disabled={isLoading}
-              >
-                {isLoading ? 'Загрузка...' : 'Войти'}
-              </Button>
-            </VStack>
-          </VStack>
+                  <Box>
+                    <Text fontWeight="medium" mb={2}>
+                      Пароль
+                    </Text>
+                    <Input
+                      placeholder="Введите пароль..."
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      onKeyPress={handleKeyPress}
+                      size="lg"
+                      type="password"
+                      bg="gray.50"
+                      borderColor="gray.200"
+                    />
+                  </Box>
 
-          {/* Link to Register */}
-          <Box textAlign="center" mt={6}>
-            <Text fontSize="sm" color="gray.600">
-              Нет аккаунта?{' '}
-              <Text
-                as="button"
-                color="blue.600"
-                fontWeight="medium"
-                onClick={() => navigate('/register')}
-                _hover={{ textDecoration: 'underline' }}
-              >
-                Зарегистрироваться
-              </Text>
-            </Text>
-            <Button
-              variant="outline"
-              colorScheme="blue"
-              size="sm"
-              mt={4}
-              onClick={() => navigate('/admin/login')}
-            >
-              Войти администратором
-            </Button>
-          </Box>
-        </Card.Body>
-      </Card.Root>
+                  <Text fontSize="xs" color="gray.500">
+                    Тестовые данные: user@example.com / password123
+                  </Text>
+
+                  <Button
+                    bg="green.600"
+                    _hover={{ bg: 'green.700' }}
+                    color="white"
+                    size="lg"
+                    onClick={handleLogin}
+                    w="full"
+                    loading={isLoading}
+                    disabled={isLoading}
+                    borderRadius="xl"
+                  >
+                    {isLoading ? 'Загрузка...' : 'Войти'}
+                  </Button>
+                </VStack>
+
+                <HStack justify="space-between" fontSize="sm" color="gray.600">
+                  <Text
+                    as="button"
+                    onClick={() => navigate('/register')}
+                    fontWeight="medium"
+                    _hover={{ textDecoration: 'underline', color: 'green.700' }}
+                  >
+                    Нет аккаунта?
+                  </Text>
+                  <Text
+                    as="button"
+                    onClick={() => navigate('/admin/login')}
+                    fontWeight="medium"
+                    _hover={{ textDecoration: 'underline', color: 'green.700' }}
+                  >
+                    Войти администратором
+                  </Text>
+                </HStack>
+              </VStack>
+            </Card.Body>
+          </Card.Root>
+
+        </SimpleGrid>
+
+      </Container>
     </Center>
   );
 };

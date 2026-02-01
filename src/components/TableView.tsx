@@ -94,10 +94,26 @@ export const TableView: React.FC<TableViewProps> = ({ refreshTrigger }) => {
     );
   }
 
-  // Сортируем блоки по коду
+  const normalizeBlockCode = (code: string) =>
+    code
+      .toLowerCase()
+      .replace(/а/g, 'a')
+      .replace(/в/g, 'b');
+  const priorityOrder = new Map([
+    ['5.a.01', 0],
+    ['5.a.02', 1],
+    ['5.b.01', 2],
+    ['5.b.02', 3]
+  ]);
+  const getPriority = (code: string) => priorityOrder.get(normalizeBlockCode(code)) ?? 9999;
+
+  // Сортируем блоки по приоритету и коду
   const sortedBlocks = [...blocks].sort((a, b) => {
     if (!a.code || !b.code) return 0;
-    return a.code.localeCompare(b.code);
+    const prioA = getPriority(a.code);
+    const prioB = getPriority(b.code);
+    if (prioA !== prioB) return prioA - prioB;
+    return a.code.localeCompare(b.code, 'ru', { numeric: true });
   });
 
   return (
@@ -116,7 +132,9 @@ export const TableView: React.FC<TableViewProps> = ({ refreshTrigger }) => {
           <BlockTable
             key={block.code}
             blockCode={block.code}
-            places={block.places}
+            places={[...block.places].sort((a, b) =>
+              a.placeNumber.localeCompare(b.placeNumber, 'ru', { numeric: true })
+            )}
             total={block.total}
             occupied={block.occupied}
           />

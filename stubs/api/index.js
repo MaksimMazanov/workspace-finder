@@ -515,7 +515,7 @@ router.get('/search', async (req, res) => {
     console.error('Search error:', error);
     res.status(500).json({
       success: false,
-      error: 'Internal server error'
+      error: 'Внутренняя ошибка сервера'
     });
   }
 });
@@ -900,7 +900,7 @@ function adminLoginLimiter(req, res, next) {
   if (!checkRateLimit(ip)) {
     return res.status(429).json({
       success: false,
-      error: 'Too many login attempts, please try again later'
+      error: 'Слишком много попыток входа, попробуйте позже'
     });
   }
   next();
@@ -914,7 +914,7 @@ function requireAdmin(req, res, next) {
     if (!token) {
       return res.status(401).json({
         success: false,
-        error: 'Unauthorized: Admin session required'
+        error: 'Необходима админская сессия'
       });
     }
 
@@ -922,7 +922,7 @@ function requireAdmin(req, res, next) {
     if (decoded.role !== 'admin') {
       return res.status(403).json({
         success: false,
-        error: 'Forbidden: Admin role required'
+        error: 'Доступ запрещен: требуется роль администратора'
       });
     }
     
@@ -931,7 +931,7 @@ function requireAdmin(req, res, next) {
   } catch (error) {
     return res.status(401).json({
       success: false,
-      error: 'Unauthorized: Invalid or expired session'
+      error: 'Сессия недействительна или истекла'
     });
   }
 }
@@ -1093,88 +1093,564 @@ router.post('/auth/register', (req, res) => {
 
 // ============ ADMIN ENDPOINTS ============
 
+// GET /api/test/upload-real-file - Upload real file with actual data (admin only)
+router.get('/test/upload-real-file', requireAdmin, async (req, res) => {
+  try {
+    const xlsx = require('xlsx');
+    console.log('=== REAL FILE UPLOAD ENDPOINT ===');
+    
+    // Read the formatted file
+    const workbook = xlsx.readFile('/Users/internet/Downloads/workplaces_formatted.xlsx');
+    const sheet = workbook.Sheets['Workplaces'];
+    const data = xlsx.utils.sheet_to_json(sheet, { defval: '' });
+    
+    console.log(`Processing ${data.length} rows from real file...`);
+    
+    const errors = [];
+    let inserted = 0;
+    let updated = 0;
+    const coll = getCollection();
+
+    for (let i = 0; i < data.length; i++) {
+      const row = data[i];
+
+      if (!row.placeNumber || !row.blockCode || !row.status) {
+        console.log(`Row ${i + 1}: Missing required fields. Got:`, { placeNumber: row.placeNumber, blockCode: row.blockCode, status: row.status });
+        errors.push({
+          row: i + 2,
+          error: 'Не заполнены обязательные поля: placeNumber, blockCode или status'
+        });
+        continue;
+      }
+
+      const workplaceData = {
+        placeNumber: row.placeNumber,
+        placeName: row.placeNumber,
+        zone: row.zone || '',
+        blockCode: row.blockCode,
+        type: row.type || 'Openspace',
+        category: 'Основное',
+        employeeName: row.employeeName || '',
+        tabNumber: '',
+        department: row.department || '',
+        team: row.team || '',
+        position: row.position || '',
+        status: row.status,
+        coworkingType: '',
+        updatedAt: new Date()
+      };
+
+      if (mongoConnected && coll?.updateOne) {
+        const result = await coll.updateOne(
+          { placeNumber: row.placeNumber },
+          {
+            $set: workplaceData,
+            $setOnInsert: {
+              createdAt: new Date()
+            }
+          },
+          { upsert: true }
+        );
+
+        if (result.upsertedCount > 0) {
+          console.log(`Row ${i + 1}: Inserted place ${row.placeNumber}`);
+          inserted++;
+        } else if (result.modifiedCount > 0) {
+          console.log(`Row ${i + 1}: Updated place ${row.placeNumber}`);
+          updated++;
+        }
+      } else {
+        const existingIndex = fallbackWorkplaces.findIndex(
+          (item) => item.placeNumber === row.placeNumber
+        );
+
+        if (existingIndex >= 0) {
+          console.log(`Row ${i + 1}: Updated place ${row.placeNumber} (fallback)`);
+          fallbackWorkplaces[existingIndex] = {
+            ...fallbackWorkplaces[existingIndex],
+            ...workplaceData
+          };
+          updated++;
+        } else {
+          console.log(`Row ${i + 1}: Inserted place ${row.placeNumber} (fallback)`);
+          fallbackWorkplaces.push({
+            _id: { toString: () => String(fallbackWorkplaces.length + 1) },
+            ...workplaceData,
+            createdAt: new Date()
+          });
+          inserted++;
+        }
+      }
+    }
+
+    console.log(`Real file upload complete: ${inserted} inserted, ${updated} updated, ${errors.length} errors`);
+
+    const importEntry = {
+      fileName: '24.10.25-kaz-template-1.xlsx',
+      userName: req.adminUser?.role || 'Admin',
+      totalRows: data.length,
+      inserted,
+      updated,
+      errors: errors.length,
+      status: errors.length > 0 ? 'partial' : 'success'
+    };
+
+    await logImportEvent(importEntry);
+
+    res.json({
+      success: true,
+      total: data.length,
+      inserted,
+      updated,
+      errors,
+      message: 'Real file uploaded successfully'
+    });
+  } catch (error) {
+    console.error('Real file upload error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to upload real file'
+    });
+  }
+});
+
+// GET /api/test/upload-test-file - Upload a test file for testing (admin only)
+router.get('/test/upload-test-file', requireAdmin, async (req, res) => {
+  try {
+    console.log('=== TEST UPLOAD ENDPOINT ===');
+    console.log('Processing test upload...');
+    
+    // Create test data
+    const testData = [
+      { placeNumber: '5.В.01.056', blockCode: '102', status: 'free', zone: 'Open space', type: 'Openspace', employeeName: '', department: 'УРМ г.Казань', team: 'КАП. Serverless Engine', position: '' },
+      { placeNumber: '5.В.01.066', blockCode: '103', status: 'occupied', zone: 'Open space', type: 'Openspace', employeeName: 'Иванов Иван Иванович', department: 'УРМ г.Иннополис', team: 'SberGeo', position: 'Ведущий инженер по разработке' },
+      { placeNumber: '5.В.01.059', blockCode: '103', status: 'occupied', zone: 'Open space', type: 'Openspace', employeeName: 'Степкин Степан Степанович', department: 'УРМ г.Казань', team: 'Инструмент управления численностью блока', position: 'Инженер по разработке' },
+      { placeNumber: '5.В.01.047', blockCode: '103', status: 'free', zone: 'Open space', type: 'Openspace', employeeName: '', department: 'УРМ г.Казань', team: 'Инструмент управления численностью блока', position: '' },
+      { placeNumber: '5.В.01.057', blockCode: '103', status: 'occupied', zone: 'Open space', type: 'Openspace', employeeName: 'Петров Петр Петрович', department: 'УРМ г.Казань', team: 'SberGeo', position: 'Ведущий разработчик' }
+    ];
+    
+    const errors = [];
+    let inserted = 0;
+    let updated = 0;
+    const coll = getCollection();
+
+    for (let i = 0; i < testData.length; i++) {
+      const row = testData[i];
+
+      if (!row.placeNumber || !row.blockCode || !row.status) {
+        console.log(`Row ${i + 1}: Missing required fields`);
+        errors.push({
+          row: i + 1,
+          error: 'Не заполнены обязательные поля: placeNumber, blockCode или status'
+        });
+        continue;
+      }
+
+      const workplaceData = {
+        placeNumber: row.placeNumber,
+        placeName: row.placeNumber,
+        zone: row.zone || '',
+        blockCode: row.blockCode,
+        type: row.type || 'Openspace',
+        category: 'Основное',
+        employeeName: row.employeeName || '',
+        tabNumber: '',
+        department: row.department || '',
+        team: row.team || '',
+        position: row.position || '',
+        status: row.status,
+        coworkingType: '',
+        updatedAt: new Date()
+      };
+
+      if (mongoConnected && coll?.updateOne) {
+        const result = await coll.updateOne(
+          { placeNumber: row.placeNumber },
+          {
+            $set: workplaceData,
+            $setOnInsert: {
+              createdAt: new Date()
+            }
+          },
+          { upsert: true }
+        );
+
+        if (result.upsertedCount > 0) {
+          console.log(`Row ${i + 1}: Inserted place ${row.placeNumber}`);
+          inserted++;
+        } else if (result.modifiedCount > 0) {
+          console.log(`Row ${i + 1}: Updated place ${row.placeNumber}`);
+          updated++;
+        }
+      } else {
+        const existingIndex = fallbackWorkplaces.findIndex(
+          (item) => item.placeNumber === row.placeNumber
+        );
+
+        if (existingIndex >= 0) {
+          console.log(`Row ${i + 1}: Updated place ${row.placeNumber} (fallback)`);
+          fallbackWorkplaces[existingIndex] = {
+            ...fallbackWorkplaces[existingIndex],
+            ...workplaceData
+          };
+          updated++;
+        } else {
+          console.log(`Row ${i + 1}: Inserted place ${row.placeNumber} (fallback)`);
+          fallbackWorkplaces.push({
+            _id: { toString: () => String(fallbackWorkplaces.length + 1) },
+            ...workplaceData,
+            createdAt: new Date()
+          });
+          inserted++;
+        }
+      }
+    }
+
+    console.log(`Test upload complete: ${inserted} inserted, ${updated} updated, ${errors.length} errors`);
+
+    const importEntry = {
+      fileName: 'test_workplaces.xlsx',
+      userName: req.adminUser?.role || 'Admin',
+      totalRows: testData.length,
+      inserted,
+      updated,
+      errors: errors.length,
+      status: errors.length > 0 ? 'partial' : 'success'
+    };
+
+    await logImportEvent(importEntry);
+
+    res.json({
+      success: true,
+      total: testData.length,
+      inserted,
+      updated,
+      errors,
+      message: 'Test file uploaded successfully'
+    });
+  } catch (error) {
+    console.error('Test upload error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to upload test file'
+    });
+  }
+});
+
 // POST /api/admin/upload - Upload XLS file (admin only)
 router.post('/admin/upload', requireAdmin, async (req, res) => {
+  console.log('=== ADMIN UPLOAD ENDPOINT CALLED ===');
+  console.log('Admin user:', req.adminUser);
   const multer = require('multer');
   const xlsx = require('xlsx');
   const upload = multer({
     storage: multer.memoryStorage(),
     limits: { fileSize: 10 * 1024 * 1024 },
     fileFilter: (req, file, cb) => {
+      console.log('File filter check:', { filename: file.originalname, mimetype: file.mimetype });
       const allowedTypes = [
         'application/vnd.ms-excel',
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'application/octet-stream'
       ];
 
-      if (allowedTypes.includes(file.mimetype)) {
+      const name = String(file.originalname || '').toLowerCase();
+      const hasValidExt = name.endsWith('.xls') || name.endsWith('.xlsx');
+
+      if (allowedTypes.includes(file.mimetype) || hasValidExt) {
+        console.log('File filter: PASSED');
         cb(null, true);
       } else {
-        cb(new Error('Only XLS/XLSX files are allowed'));
+        console.log('File filter: REJECTED - invalid mimetype');
+        cb(new Error('Разрешены только файлы XLS/XLSX'));
       }
     }
   });
 
   upload.single('file')(req, res, async (uploadError) => {
     if (uploadError) {
+      console.error('Upload middleware error:', uploadError);
       return res.status(400).json({
         success: false,
-        error: uploadError.message || 'Failed to upload file'
+        error: uploadError.message || 'Не удалось загрузить файл'
       });
     }
 
     try {
+      console.log('Upload request received');
+      console.log('File:', req.file ? { name: req.file.originalname, size: req.file.size } : 'No file');
+      console.log('Body:', req.body);
+
       if (!req.file) {
+        console.log('No file in request');
         return res.status(400).json({
           success: false,
-          error: 'No file uploaded'
+          error: 'Файл не загружен'
         });
       }
 
+      console.log('Parsing XLS file:', req.file.originalname);
       const workbook = xlsx.read(req.file.buffer, { type: 'buffer' });
-      const sheetName = workbook.SheetNames[0];
-      const sheet = workbook.Sheets[sheetName];
 
-      if (!sheet) {
+      const normalizeHeader = (value) =>
+        String(value || '')
+          .replace(/\u00a0/g, ' ')
+          .trim();
+      const normalizeKey = (value) =>
+        normalizeHeader(value)
+          .toLowerCase()
+          .replace(/[^a-zа-я0-9]+/gi, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+      const deriveBlockCode = (placeNumber) => {
+        const text = String(placeNumber || '').trim();
+        if (!text) return '';
+        const match = text.match(/^(.*)\\.[^.]+$/);
+        if (match) return match[1];
+        const parts = text.split('.');
+        return parts.length > 1 ? parts.slice(0, -1).join('.') : '';
+      };
+      const mapStatus = (value) => {
+        const text = String(value || '').trim().toLowerCase();
+        if (!text) return '';
+        if (text.includes('свобод')) return 'free';
+        if (text.includes('занято')) return 'occupied';
+        if (text.includes('размещ')) return 'occupied';
+        if (text.includes('сотрудник')) return 'occupied';
+        if (text.includes('подряд')) return 'occupied';
+        if (text.includes('ваканс')) return 'occupied';
+        if (text.includes('резерв') || text.includes('coworking')) return 'reserved';
+        return 'reserved';
+      };
+      const normalizeStatusLabel = (value) => {
+        const text = String(value || '').trim();
+        if (!text) return '';
+        if (/coworking[-\\s]*\\d+/i.test(text)) return 'Коворкинг';
+        return text;
+      };
+
+      const isHeaderMatch = (normalizedRow) => {
+        const joined = normalizedRow.join(' ');
+        const hasPlace =
+          normalizedRow.includes('placenumber') ||
+          joined.includes('наименование рм') ||
+          joined.includes('номер рм') ||
+          joined.includes('ид рм');
+        const hasStatus =
+          normalizedRow.includes('status') ||
+          joined.includes('статус занятости рм') ||
+          joined.includes('статус рм');
+        return hasPlace || hasStatus;
+      };
+
+      const parseSheet = (sheet) => {
+        const rows = xlsx.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+        if (!rows.length) return null;
+
+        let headerIndex = -1;
+        let headers = [];
+        for (let i = 0; i < rows.length; i++) {
+          const row = rows[i].map(normalizeHeader);
+          const normalizedRow = row.map(normalizeKey);
+          if (isHeaderMatch(normalizedRow)) {
+            headerIndex = i;
+            headers = row;
+            break;
+          }
+        }
+
+        if (headerIndex < 0) return null;
+
+        const headerIndexMap = new Map();
+        headers.forEach((header, idx) => {
+          if (header) headerIndexMap.set(header, idx);
+        });
+        const headerIndexMapNormalized = new Map();
+        headers.forEach((header, idx) => {
+          const key = normalizeKey(header);
+          if (key) headerIndexMapNormalized.set(key, idx);
+        });
+
+        const getCell = (row, keys) => {
+          for (const key of keys) {
+            if (headerIndexMap.has(key)) {
+              const idx = headerIndexMap.get(key);
+              return row[idx];
+            }
+            const normalizedKey = normalizeKey(key);
+            if (headerIndexMapNormalized.has(normalizedKey)) {
+              const idx = headerIndexMapNormalized.get(normalizedKey);
+              return row[idx];
+            }
+          }
+          return '';
+        };
+
+        const dataRows = rows.slice(headerIndex + 1);
+        const mappedRows = dataRows.map((row, idx) => {
+          const roomNumber = getCell(row, ['Номер помещения']);
+          const placeRaw = getCell(row, [
+            'placeNumber',
+            'Наименование РМ',
+            'Номер РМ',
+            'Ид. РМ'
+          ]);
+          let placeNumber = placeRaw;
+          if (/^\\d+$/.test(String(placeNumber || '').trim())) {
+            if (roomNumber) {
+              placeNumber = `${roomNumber}.${String(placeNumber).trim()}`;
+            } else {
+              const placeId = getCell(row, ['Ид. РМ']);
+              if (placeId) {
+                placeNumber = placeId;
+              }
+            }
+          }
+
+          const blockCodeSource =
+            getCell(row, ['blockCode']) ||
+            getCell(row, ['Ид. Помещения']) ||
+            roomNumber ||
+            getCell(row, ['Ид. РМ']);
+          const placeHasBlock = /[A-Za-zА-Яа-я]/.test(String(placeNumber || '')) && String(placeNumber || '').includes('.');
+          let blockCode = placeHasBlock ? deriveBlockCode(placeNumber) : deriveBlockCode(blockCodeSource || placeNumber);
+          if (!String(blockCode || '').trim()) {
+            blockCode = String(blockCodeSource || '').trim();
+          }
+          blockCode = String(blockCode || '').toLowerCase();
+          const statusRaw = getCell(row, [
+            'Статус занятости РМ. Описание',
+            'status',
+            'Статус РМ. Описание',
+            'Тип занятия РМ. Описание',
+            'ПользоватСтатус'
+          ]);
+          const statusLabel = normalizeStatusLabel(statusRaw);
+          const hasStatusHeader =
+            headerIndexMap.has('status') || headerIndexMapNormalized.has('status');
+          let status = hasStatusHeader ? statusRaw : mapStatus(statusRaw);
+          if (!String(status || '').trim()) {
+            const employeeName = getCell(row, ['employeeName', 'ФИО сотрудника', 'ФИО ДП']);
+            status = String(employeeName || '').trim() ? 'occupied' : 'free';
+          }
+          const employeeNameFromRow = getCell(row, ['employeeName', 'ФИО сотрудника', 'ФИО ДП', 'ФИО ЛГ']);
+          const contractorName = getCell(row, ['ФИО ДП', 'ФИО ЛГ']);
+          let employeeNameFallback = String(employeeNameFromRow || '').trim()
+            ? employeeNameFromRow
+            : statusLabel || statusRaw;
+          if (
+            !String(employeeNameFromRow || '').trim() &&
+            String(statusRaw || '').toLowerCase().includes('подряд') &&
+            String(contractorName || '').trim()
+          ) {
+            employeeNameFallback = contractorName;
+          }
+          return {
+            _rowNumber: headerIndex + 2 + idx,
+            placeNumber,
+            placeName: getCell(row, ['placeName']) || placeNumber,
+            zone: getCell(row, ['zone', 'Наименование зоны']),
+            blockCode,
+            type: getCell(row, ['type', 'Тип РМ. Описание']) || 'Openspace',
+            category: getCell(row, ['category', 'Категория РМ. Описание']) || 'Основное',
+            employeeName: employeeNameFallback,
+            tabNumber: getCell(row, ['tabNumber', 'Табельный номер', 'Табельный номер ДП']),
+            department: getCell(row, ['Название подразделения Блок-1', 'department', 'Департамент. Описание']),
+            team: getCell(row, ['team', 'Команда. Описание']),
+            position: getCell(row, ['position', 'Наименование шт.должности']),
+            status,
+            coworkingType: getCell(row, ['coworkingType', 'Вид рабочего места. Описание']) || statusLabel || statusRaw
+          };
+        });
+
+        return {
+          data: mappedRows.filter((row) => String(row.placeNumber || '').trim()),
+          headerIndex,
+          headers
+        };
+      };
+
+      let data = null;
+      let usedSheetName = null;
+      let usedHeaderRow = null;
+      let usedHeadersSample = null;
+      for (const name of workbook.SheetNames) {
+        const sheet = workbook.Sheets[name];
+        if (!sheet) continue;
+        const parsed = parseSheet(sheet);
+        if (parsed?.data?.length) {
+          data = parsed.data;
+          usedSheetName = name;
+          usedHeaderRow = parsed.headerIndex + 1;
+          usedHeadersSample = parsed.headers.map(normalizeHeader).slice(0, 20);
+          break;
+        }
+      }
+
+      if (!data) {
+        console.log('Не удалось найти лист с нужными заголовками');
         return res.status(400).json({
           success: false,
-          error: 'No sheet data found in file'
+          error: 'Не удалось найти лист с рабочими местами. Ожидались колонки вроде \"Наименование РМ\" и \"Статус занятости РМ\".'
         });
       }
 
-      const data = xlsx.utils.sheet_to_json(sheet, { defval: '' });
+      console.log(`Parsed ${data.length} rows from XLS file (sheet: ${usedSheetName})`);
+      console.log('Headers sample:', usedHeadersSample);
       const errors = [];
       let inserted = 0;
       let updated = 0;
 
       const coll = getCollection();
+      if (mongoConnected && coll?.deleteMany) {
+        await coll.deleteMany({});
+      } else {
+        fallbackWorkplaces.length = 0;
+      }
+      const debugInfo = {
+        sheet: usedSheetName,
+        headerRow: usedHeaderRow,
+        headersSample: usedHeadersSample,
+        preview: data.slice(0, 3).map((row) => ({
+          row: row._rowNumber,
+          placeNumber: row.placeNumber,
+          blockCode: row.blockCode,
+          status: row.status
+        }))
+      };
 
       for (let i = 0; i < data.length; i++) {
         const row = data[i];
 
-        if (!row.placeNumber || !row.blockCode || !row.status) {
+        const rowNumber = row._rowNumber || i + 2;
+        if (!row.placeNumber) {
+          continue;
+        }
+        if (!row.blockCode || !row.status) {
+          console.log(`Row ${rowNumber}: Missing required fields. Got:`, { placeNumber: row.placeNumber, blockCode: row.blockCode, status: row.status });
           errors.push({
-            row: i + 2,
-            error: 'Missing required fields: placeNumber, blockCode, or status'
+            row: rowNumber,
+            error: 'Не заполнены обязательные поля: placeNumber, blockCode или status'
           });
           continue;
         }
 
         const workplaceData = {
-          placeNumber: row.placeNumber,
-          placeName: row.placeName || row.placeNumber,
-          zone: row.zone || '',
-          blockCode: row.blockCode,
-          type: row.type || 'Openspace',
-          category: row.category || 'Основное',
-          employeeName: row.employeeName || '',
-          tabNumber: row.tabNumber || '',
-          department: row.department || '',
-          team: row.team || '',
-          position: row.position || '',
-          status: row.status,
-          coworkingType: row.coworkingType || '',
-          updatedAt: new Date()
-        };
+        placeNumber: row.placeNumber,
+        placeName: row.placeName || row.placeNumber,
+        zone: row.zone || '',
+        blockCode: row.blockCode,
+        type: row.type || 'Openspace',
+        category: row.category || 'Основное',
+        employeeName: row.employeeName || '',
+        tabNumber: row.tabNumber || '',
+        department: row.department || '',
+        team: row.team || '',
+        position: row.position || '',
+        status: row.status,
+        coworkingType: row.coworkingType || '',
+        updatedAt: new Date()
+      };
 
         if (mongoConnected && coll?.updateOne) {
           const result = await coll.updateOne(
@@ -1189,8 +1665,10 @@ router.post('/admin/upload', requireAdmin, async (req, res) => {
           );
 
           if (result.upsertedCount > 0) {
+            console.log(`Row ${i + 2}: Inserted place ${row.placeNumber}`);
             inserted++;
           } else if (result.modifiedCount > 0) {
+            console.log(`Row ${i + 2}: Updated place ${row.placeNumber}`);
             updated++;
           }
         } else {
@@ -1199,12 +1677,14 @@ router.post('/admin/upload', requireAdmin, async (req, res) => {
           );
 
           if (existingIndex >= 0) {
+            console.log(`Row ${i + 2}: Updated place ${row.placeNumber} (fallback)`);
             fallbackWorkplaces[existingIndex] = {
               ...fallbackWorkplaces[existingIndex],
               ...workplaceData
             };
             updated++;
           } else {
+            console.log(`Row ${i + 2}: Inserted place ${row.placeNumber} (fallback)`);
             fallbackWorkplaces.push({
               _id: { toString: () => String(fallbackWorkplaces.length + 1) },
               ...workplaceData,
@@ -1215,7 +1695,10 @@ router.post('/admin/upload', requireAdmin, async (req, res) => {
         }
       }
 
+      console.log(`Import complete: ${inserted} inserted, ${updated} updated, ${errors.length} errors`);
+
       const userName = req.body?.userName || 'Unknown';
+      console.log('Logging import event with userName:', userName);
       const importEntry = {
         fileName: req.file.originalname,
         userName,
@@ -1231,18 +1714,20 @@ router.post('/admin/upload', requireAdmin, async (req, res) => {
         ...importEntry
       });
 
+      console.log('Sending response with results:', { success: true, total: data.length, inserted, updated, errors });
       res.json({
         success: true,
         total: data.length,
         inserted,
         updated,
-        errors
+        errors,
+        debug: errors.length ? debugInfo : undefined
       });
     } catch (error) {
       console.error('Admin upload error:', error);
       res.status(500).json({
         success: false,
-        error: error.message || 'Failed to process file'
+        error: error.message || 'Не удалось обработать файл'
       });
     }
   });
@@ -1283,7 +1768,7 @@ router.get('/admin/imports', requireAdmin, async (req, res) => {
     console.error('Error fetching imports:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to fetch imports'
+      error: 'Не удалось получить историю импортов'
     });
   }
 });
@@ -1304,7 +1789,7 @@ router.post('/auth/admin/login', adminLoginLimiter, async (req, res) => {
       });
       return res.status(400).json({
         success: false,
-        error: 'Password is required'
+        error: 'Пароль обязателен'
       });
     }
 
@@ -1320,7 +1805,7 @@ router.post('/auth/admin/login', adminLoginLimiter, async (req, res) => {
       });
       return res.status(401).json({
         success: false,
-        error: 'Invalid password'
+      error: 'Неверный пароль'
       });
     }
 
@@ -1353,7 +1838,7 @@ router.post('/auth/admin/login', adminLoginLimiter, async (req, res) => {
     console.error('Admin login error:', error);
     res.status(500).json({
       success: false,
-      error: 'Internal server error'
+      error: 'Внутренняя ошибка сервера'
     });
   }
 });

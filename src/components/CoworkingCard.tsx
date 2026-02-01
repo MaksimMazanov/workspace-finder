@@ -11,6 +11,11 @@ import {
   VStack,
 } from '@chakra-ui/react';
 import { Coworking } from '../api/workspaceApi';
+import {
+  getEmployeeLabelStyle,
+  normalizeDepartmentLabel,
+  normalizeEmployeeLabel
+} from '../utils/formatters';
 
 interface CoworkingCardProps {
   coworking: Coworking;
@@ -81,10 +86,18 @@ const CoworkingCardComponent: React.FC<CoworkingCardProps> = ({ coworking }) => 
                     {coworking.places.map((place) => (
                       <Box key={place.id} p={2} bg="gray.50" borderRadius="md">
                         <Text fontSize="sm" fontWeight="semibold">
-                          {place.placeNumber} — {place.employeeName}
+                          {place.placeNumber} —{' '}
+                          <Text
+                            as="span"
+                            fontSize="xs"
+                            color="gray.600"
+                            {...getEmployeeLabelStyle(place.employeeName)}
+                          >
+                            {normalizeEmployeeLabel(place.employeeName)}
+                          </Text>
                         </Text>
                         <Text fontSize="xs" color="gray.600">
-                          {place.department}
+                          {normalizeDepartmentLabel(place.department)}
                         </Text>
                         {place.team && (
                           <Text fontSize="xs" color="gray.500">

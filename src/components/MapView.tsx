@@ -15,14 +15,17 @@ import {
 } from '@chakra-ui/react';
 import { getZones, Zone } from '../api/workspaceApi';
 import { useLocalStorageCache } from '../hooks/useLocalStorageCache';
+import {
+  getEmployeeLabelStyle,
+  normalizeDepartmentLabel,
+  normalizeEmployeeLabel
+} from '../utils/formatters';
 
 const getOccupancyPalette = (percent: number) => {
   if (percent < 50) return 'green';
   if (percent < 80) return 'yellow';
   return 'red';
 };
-
-const getStatusPalette = (status: string) => (status === 'occupied' ? 'red' : 'green');
 
 const getTypeColorScheme = (type: string) => {
   const normalized = type.toLowerCase();
@@ -108,8 +111,8 @@ const ZoneCardComponent: React.FC<ZoneCardProps> = ({ zone }) => {
                           {place.placeNumber}
                         </Text>
                         {place.employeeName ? (
-                          <Text fontSize="xs" color="gray.600">
-                            {place.employeeName}
+                          <Text fontSize="xs" {...getEmployeeLabelStyle(place.employeeName)}>
+                            {normalizeEmployeeLabel(place.employeeName)}
                           </Text>
                         ) : (
                           <Text fontSize="xs" color="gray.500">
@@ -118,18 +121,10 @@ const ZoneCardComponent: React.FC<ZoneCardProps> = ({ zone }) => {
                         )}
                         {place.department && (
                           <Text fontSize="xs" color="gray.500">
-                            {place.department}
+                            {normalizeDepartmentLabel(place.department)}
                           </Text>
                         )}
                       </VStack>
-                      <Badge
-                        colorScheme={getStatusPalette(place.status)}
-                        variant="subtle"
-                        fontSize="xs"
-                        px={2}
-                      >
-                        {place.status === 'occupied' ? 'Занято' : 'Свободно'}
-                      </Badge>
                     </HStack>
                   ))}
                 </VStack>

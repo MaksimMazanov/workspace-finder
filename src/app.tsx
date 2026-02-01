@@ -5,6 +5,7 @@ import pkg from '../package.json'
 
 import { Dashboard } from './dashboard'
 import { Provider } from './theme'
+import { Global } from '@emotion/react'
 
 class ErrorBoundary extends React.Component<
   { children: React.ReactNode },
@@ -48,6 +49,12 @@ const App = () => {
     <ErrorBoundary>
       <BrowserRouter basename={basename}>
         <Provider>
+          <Global
+            styles={`
+              @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap');
+              :root { --font-outfit: 'Manrope', sans-serif; }
+            `}
+          />
           <Dashboard />
         </Provider>
       </BrowserRouter>

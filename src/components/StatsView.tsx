@@ -189,7 +189,23 @@ const StatsViewComponent: React.FC = () => {
                 </Table.Header>
                 <Table.Body>
                   {blockEntries
-                    .sort(([a], [b]) => a.localeCompare(b))
+                  .sort(([a], [b]) => {
+                    const normalize = (code: string) =>
+                      code
+                        .toLowerCase()
+                        .replace(/а/g, 'a')
+                        .replace(/в/g, 'b');
+                    const priority = new Map([
+                      ['5.a.01', 0],
+                      ['5.a.02', 1],
+                      ['5.b.01', 2],
+                      ['5.b.02', 3]
+                    ]);
+                    const prioA = priority.get(normalize(a)) ?? 9999;
+                    const prioB = priority.get(normalize(b)) ?? 9999;
+                    if (prioA !== prioB) return prioA - prioB;
+                    return a.localeCompare(b, 'ru', { numeric: true });
+                  })
                     .map(([blockCode, stats], index) => {
                       const percent = stats.total > 0 ? (stats.occupied / stats.total) * 100 : 0;
                       const rowBg = index % 2 === 0 ? 'gray.50' : 'transparent';
@@ -225,7 +241,23 @@ const StatsViewComponent: React.FC = () => {
           ) : (
             <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
               {typeEntries
-                .sort(([a], [b]) => a.localeCompare(b))
+                .sort(([a], [b]) => {
+                  const normalize = (code: string) =>
+                    code
+                      .toLowerCase()
+                      .replace(/а/g, 'a')
+                      .replace(/в/g, 'b');
+                  const priority = new Map([
+                    ['5.a.01', 0],
+                    ['5.a.02', 1],
+                    ['5.b.01', 2],
+                    ['5.b.02', 3]
+                  ]);
+                  const prioA = priority.get(normalize(a)) ?? 9999;
+                  const prioB = priority.get(normalize(b)) ?? 9999;
+                  if (prioA !== prioB) return prioA - prioB;
+                  return a.localeCompare(b, 'ru', { numeric: true });
+                })
                 .map(renderTypeRow)}
             </SimpleGrid>
           )}
