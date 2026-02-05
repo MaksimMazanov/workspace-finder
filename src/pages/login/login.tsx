@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import {
   Box,
   VStack,
-  Heading,
   Input,
   Button,
   Text,
@@ -11,7 +10,6 @@ import {
   Center,
   Card,
   HStack,
-  SimpleGrid,
   Container,
 } from '@chakra-ui/react';
 import { loginUser } from '../../api/workspaceApi';
@@ -86,11 +84,10 @@ export const LoginPage = () => {
             'radial-gradient(circle at 15% 15%, rgba(24,156,88,0.12) 0%, transparent 45%), radial-gradient(circle at 80% 20%, rgba(36,107,194,0.12) 0%, transparent 40%), radial-gradient(circle at 70% 80%, rgba(24,156,88,0.10) 0%, transparent 50%)'
         }}
       />
-      <Container maxW="6xl" position="relative" py={{ base: 8, lg: 16 }}>
-        <SimpleGrid columns={1} gap={8} alignItems="stretch">
-          <Card.Root bg="white" shadow="lg" borderRadius="2xl">
-            <Card.Body p={{ base: 6, md: 8 }}>
-              <VStack spacing={6} align="stretch">
+      <Container maxW="md" position="relative" py={{ base: 8, lg: 16 }} px={4}>
+        <Card.Root bg="white" shadow="lg" borderRadius="2xl" w="full">
+          <Card.Body p={{ base: 6, md: 8 }}>
+            <VStack spacing={6} align="stretch">
                 <Box>
                   <Text fontSize="lg" fontWeight="semibold" color="gray.700" mb={2}>
                     Вход в рабочее пространство
@@ -172,9 +169,6 @@ export const LoginPage = () => {
               </VStack>
             </Card.Body>
           </Card.Root>
-
-        </SimpleGrid>
-
       </Container>
     </Center>
   );
