@@ -13,16 +13,21 @@ import {
   Alert
 } from '@chakra-ui/react';
 import { URLs } from '../../__data__/urls';
+import { safeFetch } from '../../utils/errorHandler';
 
 const toaster = createToaster({ placement: 'top' });
 
 export const AdminLoginPage = () => {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
   const handleAdminLogin = async () => {
+    console.log('handleAdminLogin called with password:', password.length > 0 ? '***' : 'empty');
     if (!password.trim()) {
+      console.log('Password is empty, showing error toast');
+      setError('Введите пароль');
       toaster.create({
         description: 'Введите пароль',
         type: 'error'
@@ -31,8 +36,11 @@ export const AdminLoginPage = () => {
     }
 
     setIsLoading(true);
+    setError(null);
     try {
-      const response = await fetch(`${URLs.apiBase}/auth/admin/login`, {
+      const url = `${URLs.apiBase}/auth/admin/login`;
+      console.log('Sending admin login request to:', url);
+      const result = await safeFetch<{ success?: boolean; error?: string }>(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -42,10 +50,14 @@ export const AdminLoginPage = () => {
           password: password.trim()
         })
       });
+      console.log('Admin login result:', result);
 
-      const data = await response.json();
+      const data = result.success ? result.data : undefined;
+      const hasApiError = !!data && typeof data === 'object' && 'error' in data && !!(data as { error?: string }).error;
 
-      if (data.success) {
+      if (result.success && data?.success !== false && !hasApiError) {
+        console.log('Admin login successful');
+        setError(null);
         toaster.create({
           description: 'Добро пожаловать в админ-панель!',
           type: 'success'
@@ -56,15 +68,27 @@ export const AdminLoginPage = () => {
           navigate('/admin');
         }, 500);
       } else {
+        console.log('Admin login failed');
+        // Show API error or HTTP status error
+        const apiError =
+          (hasApiError ? (data as { error?: string }).error : undefined) ||
+          ('error' in result ? result.error : undefined);
+        const apiCode = 'code' in result ? result.code : undefined;
+        const errorMessage =
+          apiError ||
+          (apiCode === 'HTTP_401' ? 'Неверный пароль' : 'Ошибка сервера. Попробуйте позже.');
+        console.log('Error message:', errorMessage);
+        setError(errorMessage);
         toaster.create({
-          description: data.error || 'Неверный пароль',
+          description: errorMessage,
           type: 'error'
         });
       }
     } catch (error) {
       console.error('Login error:', error);
+      setError('Ошибка при входе. Проверьте соединение.');
       toaster.create({
-        description: 'Ошибка при входе',
+        description: 'Ошибка при входе. Проверьте соединение.',
         type: 'error'
       });
     } finally {
@@ -120,6 +144,11 @@ export const AdminLoginPage = () => {
               >
                 Войти
               </Button>
+              {error && (
+                <Text fontSize="sm" color="red.600">
+                  {error}
+                </Text>
+              )}
 
               <Button
                 width="100%"

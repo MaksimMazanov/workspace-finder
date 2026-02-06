@@ -80,7 +80,14 @@ export const RegisterPage = () => {
 
       const data = await response.json();
 
-      if (response.ok && data.token) {
+      // Check if response indicates success and has token
+      if (data.success === false) {
+        // API returned explicit error
+        toaster.create({
+          description: data.error || 'Не удалось зарегистрироваться',
+          type: 'error'
+        });
+      } else if (data.token) {
         // Save token to localStorage
         localStorage.setItem('accessToken', data.token);
 
@@ -94,14 +101,18 @@ export const RegisterPage = () => {
           navigate('/');
         }, 1500);
       } else {
+        // No token received but also no explicit error
         toaster.create({
-          description: data.error || 'Не удалось зарегистрироваться',
+          description: 'Не удалось зарегистрироваться',
           type: 'error'
         });
       }
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Неизвестная ошибка';
       toaster.create({
-        description: 'Не удалось подключиться к серверу',
+        description: errorMessage.includes('Failed to fetch')
+          ? 'Не удалось подключиться к серверу'
+          : errorMessage,
         type: 'error'
       });
     } finally {

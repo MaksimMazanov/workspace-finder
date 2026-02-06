@@ -979,38 +979,54 @@ router.post('/auth/login', (req, res) => {
 
     // Validation
     if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required' });
+      return res.status(400).json({
+        success: false,
+        error: 'Email and password are required'
+      });
     }
 
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      return res.status(400).json({ error: 'Invalid email format' });
+      return res.status(400).json({
+        success: false,
+        error: 'Неверный формат email'
+      });
     }
 
     // Validate password length
     if (password.length < 6) {
-      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+      return res.status(400).json({
+        success: false,
+        error: 'Пароль должен содержать минимум 6 символов'
+      });
     }
 
     // Check credentials against test users
     const user = TEST_USERS.find(u => u.email === email);
     
     if (!user || user.password !== password) {
-      return res.status(401).json({ error: 'Invalid email or password' });
+      return res.status(401).json({
+        success: false,
+        error: 'Неверный email или пароль'
+      });
     }
 
     // Generate JWT token
     const token = jwt.sign(
-      { userId: user.id },
+      { userId: user.id, email: user.email },
       JWT_SECRET,
       { expiresIn: '1h' }
     );
 
-    res.json({ token });
+    res.json({
+      success: true,
+      token
+    });
   } catch (error) {
     console.error('Auth login error:', error);
     res.status(500).json({
+      success: false,
       error: 'Internal server error'
     });
   }
@@ -1050,24 +1066,36 @@ router.post('/auth/register', (req, res) => {
 
     // Validation
     if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required' });
+      return res.status(400).json({
+        success: false,
+        error: 'Email and password are required'
+      });
     }
 
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      return res.status(400).json({ error: 'Invalid email format' });
+      return res.status(400).json({
+        success: false,
+        error: 'Неверный формат email'
+      });
     }
 
     // Validate password length
     if (password.length < 6) {
-      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+      return res.status(400).json({
+        success: false,
+        error: 'Пароль должен содержать минимум 6 символов'
+      });
     }
 
     // Check if email already exists in TEST_USERS
     const emailExists = TEST_USERS.some(u => u.email === email);
     if (emailExists) {
-      return res.status(400).json({ error: 'Email already registered' });
+      return res.status(400).json({
+        success: false,
+        error: 'Этот email уже зарегистрирован'
+      });
     }
 
     // For demo purposes, add to TEST_USERS (in production would save to database)
@@ -1077,15 +1105,19 @@ router.post('/auth/register', (req, res) => {
 
     // Generate JWT token for registration
     const token = jwt.sign(
-      { userId: newUser.id },
+      { userId: newUser.id, email: newUser.email },
       JWT_SECRET,
       { expiresIn: '1h' }
     );
 
-    res.json({ token });
+    res.json({
+      success: true,
+      token
+    });
   } catch (error) {
     console.error('Auth register error:', error);
     res.status(500).json({
+      success: false,
       error: 'Internal server error'
     });
   }
@@ -1861,12 +1893,14 @@ router.post('/auth/logout', (req, res) => {
 router.get('/auth/me', verifyToken, (req, res) => {
   try {
     res.json({
+      success: true,
       id: req.user.id,
       email: req.user.email
     });
   } catch (error) {
     console.error('Auth me error:', error);
     res.status(500).json({
+      success: false,
       error: 'Internal server error'
     });
   }

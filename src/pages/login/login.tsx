@@ -20,10 +20,13 @@ export const LoginPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
   const handleLogin = async () => {
+    setError(null);
     if (!email.trim() || !password.trim()) {
+      setError('Введите email и пароль');
       toaster.create({
         description: 'Введите email и пароль',
         type: 'error'
@@ -34,29 +37,31 @@ export const LoginPage = () => {
     setIsLoading(true);
     try {
       const response = await loginUser(email.trim(), password.trim());
-      console.log('Login response:', response);
 
       if (response.success) {
+        setError(null);
         toaster.create({
-          description: `Добро пожаловать, ${email.trim()}!`,
+          description: 'Добро пожаловать!',
           type: 'success'
         });
 
-        console.log('Navigating to main page...');
         // Use a small delay to ensure toast is visible before navigation
         setTimeout(() => {
           navigate('/');
         }, 500);
       } else {
+        // Show specific error message from API
+        const errorMessage = response.error || 'Неверный email или пароль';
+        setError(errorMessage);
         toaster.create({
-          description: response.error || 'Не удалось войти',
+          description: errorMessage,
           type: 'error'
         });
       }
-    } catch (error) {
-      console.error('Login error:', error);
+    } catch {
+      setError('Ошибка при входе. Проверьте соединение.');
       toaster.create({
-        description: 'Не удалось подключиться к серверу',
+        description: 'Ошибка при входе. Проверьте соединение.',
         type: 'error'
       });
     } finally {
@@ -146,6 +151,11 @@ export const LoginPage = () => {
                   >
                     {isLoading ? 'Загрузка...' : 'Войти'}
                   </Button>
+                  {error && (
+                    <Text fontSize="sm" color="red.600">
+                      {error}
+                    </Text>
+                  )}
                 </VStack>
 
                 <HStack justify="space-between" fontSize="sm" color="gray.600">

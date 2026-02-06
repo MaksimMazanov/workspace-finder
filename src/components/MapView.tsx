@@ -151,7 +151,8 @@ const MapViewComponent: React.FC = () => {
       }
       throw new Error(response.error || 'Не удалось загрузить карту зон');
     },
-    5 * 60 * 1000
+    5 * 60 * 1000,
+    (response) => response.zones || []
   );
 
   const zones = data ?? [];
@@ -171,12 +172,13 @@ const MapViewComponent: React.FC = () => {
   }
 
   if (error && zones.length === 0) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
     return (
       <Alert.Root status="error" borderRadius="md">
         <Alert.Indicator />
         <Box>
           <Alert.Title>Ошибка загрузки!</Alert.Title>
-          <Alert.Description>{error.message}</Alert.Description>
+          <Alert.Description>{errorMessage || 'Не удалось загрузить карту зон'}</Alert.Description>
         </Box>
       </Alert.Root>
     );

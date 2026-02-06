@@ -15,13 +15,7 @@ import { CoworkingCard } from './CoworkingCard';
 const CoworkingViewComponent: React.FC = () => {
   const { data, loading, error } = useLocalStorageCache<CoworkingsResponse>(
     'coworkings',
-    async () => {
-      const response = await getCoworkings();
-      if (response.success) {
-        return response;
-      }
-      throw new Error(response.error || 'Не удалось загрузить коворкинги');
-    },
+    getCoworkings,
     5 * 60 * 1000
   );
 
@@ -42,12 +36,13 @@ const CoworkingViewComponent: React.FC = () => {
   }
 
   if (error && coworkings.length === 0) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
     return (
       <Alert.Root status="error" borderRadius="md">
         <Alert.Indicator />
         <Box>
           <Alert.Title>Ошибка загрузки!</Alert.Title>
-          <Alert.Description>{error.message}</Alert.Description>
+          <Alert.Description>{errorMessage || 'Не удалось загрузить коворкинги'}</Alert.Description>
         </Box>
       </Alert.Root>
     );

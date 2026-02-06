@@ -76,13 +76,7 @@ const renderTypeRow = ([type, stats]: [string, TypeStat]) => {
 const StatsViewComponent: React.FC = () => {
   const { data, loading, error } = useLocalStorageCache<StatsResponse>(
     'stats',
-    async () => {
-      const response = await getStats();
-      if (response.success) {
-        return response;
-      }
-      throw new Error(response.error || 'Не удалось загрузить статистику');
-    },
+    getStats,
     5 * 60 * 1000
   );
 
@@ -106,12 +100,13 @@ const StatsViewComponent: React.FC = () => {
   }
 
   if (error && !data) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
     return (
       <Alert.Root status="error" borderRadius="md">
         <Alert.Indicator />
         <Box>
           <Alert.Title>Ошибка загрузки!</Alert.Title>
-          <Alert.Description>{error.message}</Alert.Description>
+          <Alert.Description>{errorMessage || 'Не удалось загрузить статистику'}</Alert.Description>
         </Box>
       </Alert.Root>
     );

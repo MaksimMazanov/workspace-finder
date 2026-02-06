@@ -53,9 +53,12 @@ export const AdminPage = () => {
       const response = await getImportHistory();
       if (response.success) {
         setImports(response.imports || []);
+      } else {
+        toaster.create({
+          description: response.error || 'Не удалось загрузить историю импортов',
+          type: 'error'
+        });
       }
-    } catch (error) {
-      console.error('Failed to load import history:', error);
     } finally {
       setLoadingHistory(false);
     }
@@ -105,7 +108,13 @@ export const AdminPage = () => {
   };
 
   const handleUpload = async () => {
-    if (!selectedFile) return;
+    if (!selectedFile) {
+      toaster.create({
+        description: 'Выберите файл для загрузки',
+        type: 'error'
+      });
+      return;
+    }
 
     setUploading(true);
     setUploadResult(null);
@@ -119,8 +128,7 @@ export const AdminPage = () => {
 
       if (result.success) {
         toaster.create({
-          title: 'Успешно загружено!',
-          description: `Добавлено: ${result.inserted}, Обновлено: ${result.updated}`,
+          description: `Успешно! Добавлено: ${result.inserted || 0}, Обновлено: ${result.updated || 0}`,
           type: 'success'
         });
 
@@ -134,18 +142,10 @@ export const AdminPage = () => {
         }
       } else {
         toaster.create({
-          title: 'Ошибка загрузки',
           description: result.error || 'Не удалось загрузить файл',
           type: 'error'
         });
       }
-    } catch (error) {
-      console.error('Upload error:', error);
-      toaster.create({
-        title: 'Ошибка',
-        description: 'Не удалось загрузить файл',
-        type: 'error'
-      });
     } finally {
       setUploading(false);
     }
